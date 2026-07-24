@@ -26,17 +26,22 @@ export function LineChart({ data, width, height = 140 }: Props) {
   const chartW = width - padLeft - padRight;
   const chartH = height - padTop - padBottom;
 
-  const volumes = data.map((d) => Number.isFinite(d.volume) ? d.volume : 0);
+  const volumes = data.map((d) => (Number.isFinite(d.volume) ? d.volume : 0));
   const maxV = Math.max(...volumes, 0);
   const minV = 0;
   const valueRange = maxV - minV || 1;
 
-  const toX = (i: number) => padLeft + (i / Math.max(data.length - 1, 1)) * chartW;
-  const toY = (v: number) => padTop + chartH - ((v - minV) / valueRange) * chartH;
+  const toX = (i: number) =>
+    padLeft + (i / Math.max(data.length - 1, 1)) * chartW;
+  const toY = (v: number) =>
+    padTop + chartH - ((v - minV) / valueRange) * chartH;
 
   // Build SVG path
   const pathD = data
-    .map((d, i) => `${i === 0 ? 'M' : 'L'} ${toX(i).toFixed(1)} ${toY(Number.isFinite(d.volume) ? d.volume : 0).toFixed(1)}`)
+    .map(
+      (d, i) =>
+        `${i === 0 ? 'M' : 'L'} ${toX(i).toFixed(1)} ${toY(Number.isFinite(d.volume) ? d.volume : 0).toFixed(1)}`,
+    )
     .join(' ');
 
   // Y-axis grid labels
@@ -67,14 +72,23 @@ export function LineChart({ data, width, height = 140 }: Props) {
               fill={Colors.textMuted}
               textAnchor="end"
             >
-              {v >= 1000 ? `${Math.round(v / 1000)}k` : Math.round(v).toString()}
+              {v >= 1000
+                ? `${Math.round(v / 1000)}k`
+                : Math.round(v).toString()}
             </SvgText>
           </React.Fragment>
         );
       })}
 
       {/* Chart line */}
-      <Path d={pathD} stroke={Colors.chartLine} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <Path
+        d={pathD}
+        stroke={Colors.chartLine}
+        strokeWidth={2.5}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
 
       {/* X axis labels */}
       {data.map((d, i) => {

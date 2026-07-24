@@ -25,7 +25,7 @@ export interface Exercise {
 
 export interface SetEntry {
   id: string;
-  weight: number;    // lbs
+  weight: number; // kg
   reps: number;
   completed: boolean;
 }
@@ -40,11 +40,11 @@ export interface WorkoutExercise {
 export interface WorkoutSession {
   id: string;
   name: string;
-  startTime: number;   // ms timestamp
-  endTime?: number;    // ms timestamp
+  startTime: number; // ms timestamp
+  endTime?: number; // ms timestamp
   durationSeconds: number;
   exercises: WorkoutExercise[];
-  totalVolume: number; // lbs
+  totalVolume: number; // kg
   totalSets: number;
   notes?: string;
 }
@@ -77,7 +77,7 @@ export interface PersonalRecord {
 export type ProgressRange = '7d' | '1m' | '1y';
 
 export interface ProgressDataPoint {
-  date: string;       // 'Mon', 'Tue' etc or date string
+  date: string; // 'Mon', 'Tue' etc or date string
   timestamp: number;
   volume: number;
 }
@@ -97,13 +97,13 @@ export interface RoutineExercise {
   muscleGroup: MuscleGroup;
   defaultSets: number;
   defaultReps: number;
-  defaultWeight: number; // lbs, 0 = bodyweight
+  defaultWeight: number; // kg, 0 = bodyweight
 }
 
 export interface Routine {
   id: string;
-  name: string;          // "Push Day", "Pull Day", "Legs"
-  emoji: string;         // user-chosen emoji for the card
+  name: string; // "Push Day", "Pull Day", "Legs"
+  emoji: string; // user-chosen emoji for the card
   exercises: RoutineExercise[];
   createdAt: number;
   lastUsedAt?: number;

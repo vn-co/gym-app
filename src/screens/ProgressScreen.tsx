@@ -10,7 +10,13 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, FontSize, FontWeight, Spacing, Radius } from '../constants/tokens';
+import {
+  Colors,
+  FontSize,
+  FontWeight,
+  Spacing,
+  Radius,
+} from '../constants/tokens';
 import { getSessions, getPersonalRecords } from '../services/storage';
 import { buildProgressData, formatWeight, formatShortDate } from '../utils';
 import { LineChart } from '../components/ui/LineChart';
@@ -37,7 +43,11 @@ export function ProgressScreen() {
     setPrs(p);
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -56,7 +66,13 @@ export function ProgressScreen() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.accent}
+          />
+        }
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
@@ -68,10 +84,18 @@ export function ProgressScreen() {
           {RANGES.map((r) => (
             <TouchableOpacity
               key={r.value}
-              style={[styles.rangeBtn, range === r.value && styles.rangeBtnActive]}
+              style={[
+                styles.rangeBtn,
+                range === r.value && styles.rangeBtnActive,
+              ]}
               onPress={() => setRange(r.value)}
             >
-              <Text style={[styles.rangeBtnText, range === r.value && styles.rangeBtnTextActive]}>
+              <Text
+                style={[
+                  styles.rangeBtnText,
+                  range === r.value && styles.rangeBtnTextActive,
+                ]}
+              >
                 {r.label}
               </Text>
             </TouchableOpacity>
@@ -83,15 +107,30 @@ export function ProgressScreen() {
           <View style={styles.chartHeaderRow}>
             <Text style={styles.chartLabel}>TOTAL WEIGHT LIFTED</Text>
             {hasData && (
-              <View style={[
-                styles.changeBadge,
-                { backgroundColor: stats.percentChange >= 0 ? Colors.accentBg : Colors.dangerBg }
-              ]}>
-                <Text style={[
-                  styles.changeBadgeText,
-                  { color: stats.percentChange >= 0 ? Colors.accent : Colors.danger }
-                ]}>
-                  {stats.percentChange >= 0 ? '+' : ''}{stats.percentChange}%
+              <View
+                style={[
+                  styles.changeBadge,
+                  {
+                    backgroundColor:
+                      stats.percentChange >= 0
+                        ? Colors.accentBg
+                        : Colors.dangerBg,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.changeBadgeText,
+                    {
+                      color:
+                        stats.percentChange >= 0
+                          ? Colors.accent
+                          : Colors.danger,
+                    },
+                  ]}
+                >
+                  {stats.percentChange >= 0 ? '+' : ''}
+                  {stats.percentChange}%
                 </Text>
               </View>
             )}
@@ -99,7 +138,7 @@ export function ProgressScreen() {
 
           <Text style={styles.peakValue}>
             {formatWeight(stats.peak)}{' '}
-            <Text style={styles.peakUnit}>lbs peak</Text>
+            <Text style={styles.peakUnit}>kg peak</Text>
           </Text>
 
           <LineChart data={points} width={chartWidth} height={150} />
@@ -144,10 +183,12 @@ export function ProgressScreen() {
               </View>
               <View style={styles.prInfo}>
                 <Text style={styles.prName}>{pr.exerciseName}</Text>
-                <Text style={styles.prDate}>Set {formatShortDate(pr.setAt)}</Text>
+                <Text style={styles.prDate}>
+                  Set {formatShortDate(pr.setAt)}
+                </Text>
               </View>
               <View style={styles.prRight}>
-                <Text style={styles.prWeight}>{pr.weight} lbs</Text>
+                <Text style={styles.prWeight}>{pr.weight} kg</Text>
                 <Text style={styles.prSubtitle}>All time PR</Text>
               </View>
             </View>
@@ -300,13 +341,26 @@ const styles = StyleSheet.create({
   },
   prEmoji: { fontSize: FontSize.xl },
   prInfo: { flex: 1 },
-  prName: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: Colors.textPrimary, marginBottom: 2 },
+  prName: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+    color: Colors.textPrimary,
+    marginBottom: 2,
+  },
   prDate: { fontSize: FontSize.sm, color: Colors.textMuted },
   prRight: { alignItems: 'flex-end' },
-  prWeight: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.accent },
+  prWeight: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    color: Colors.accent,
+  },
   prSubtitle: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
 
   emptyPrs: { alignItems: 'center', paddingVertical: Spacing.xxxl },
   emptyPrsEmoji: { fontSize: 48, marginBottom: Spacing.md },
-  emptyPrsText: { fontSize: FontSize.md, color: Colors.textMuted, textAlign: 'center' },
+  emptyPrsText: {
+    fontSize: FontSize.md,
+    color: Colors.textMuted,
+    textAlign: 'center',
+  },
 });

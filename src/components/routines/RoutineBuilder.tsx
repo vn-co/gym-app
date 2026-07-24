@@ -13,10 +13,24 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Colors, FontSize, FontWeight, Spacing, Radius } from '../../constants/tokens';
-import { EXERCISE_LIBRARY, MUSCLE_GROUP_LABELS } from '../../constants/exercises';
+import {
+  Colors,
+  FontSize,
+  FontWeight,
+  Spacing,
+  Radius,
+} from '../../constants/tokens';
+import {
+  EXERCISE_LIBRARY,
+  MUSCLE_GROUP_LABELS,
+} from '../../constants/exercises';
 import { generateId } from '../../utils';
-import type { Routine, RoutineExercise, Exercise, MuscleGroup } from '../../types';
+import type {
+  Routine,
+  RoutineExercise,
+  Exercise,
+  MuscleGroup,
+} from '../../types';
 
 const EMOJIS = ['💪', '🏋️', '🔥', '⚡', '🎯', '🦵', '🏃', '🧠', '🌊', '🥊'];
 
@@ -28,7 +42,13 @@ interface Props {
   onClose: () => void;
 }
 
-export function RoutineBuilder({ visible, initial, allExercises, onSave, onClose }: Props) {
+export function RoutineBuilder({
+  visible,
+  initial,
+  allExercises,
+  onSave,
+  onClose,
+}: Props) {
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('💪');
   const [exercises, setExercises] = useState<RoutineExercise[]>([]);
@@ -90,7 +110,11 @@ export function RoutineBuilder({ visible, initial, allExercises, onSave, onClose
     setExercises((prev) => prev.filter((e) => e.exerciseId !== id));
   };
 
-  const updateExercise = (id: string, field: keyof RoutineExercise, value: number) => {
+  const updateExercise = (
+    id: string,
+    field: keyof RoutineExercise,
+    value: number,
+  ) => {
     setExercises((prev) =>
       prev.map((e) => (e.exerciseId === id ? { ...e, [field]: value } : e)),
     );
@@ -119,10 +143,20 @@ export function RoutineBuilder({ visible, initial, allExercises, onSave, onClose
   // ── Exercise picker sub-modal ────────────────────────────────────────────
   if (showPicker) {
     return (
-      <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <Modal
+        visible={visible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
         <SafeAreaView style={styles.safe}>
           <View style={styles.pickerHeader}>
-            <TouchableOpacity onPress={() => { setShowPicker(false); setPickerQuery(''); setPickerGroup(null); }}>
+            <TouchableOpacity
+              onPress={() => {
+                setShowPicker(false);
+                setPickerQuery('');
+                setPickerGroup(null);
+              }}
+            >
               <Text style={styles.pickerBack}>‹ Back</Text>
             </TouchableOpacity>
             <Text style={styles.pickerTitle}>Add Exercise</Text>
@@ -147,13 +181,21 @@ export function RoutineBuilder({ visible, initial, allExercises, onSave, onClose
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item ?? 'all'}
             style={styles.chips}
-            contentContainerStyle={{ paddingHorizontal: Spacing.lg, gap: Spacing.sm }}
+            contentContainerStyle={{
+              paddingHorizontal: Spacing.lg,
+              gap: Spacing.sm,
+            }}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[styles.chip, pickerGroup === item && styles.chipActive]}
                 onPress={() => setPickerGroup(item)}
               >
-                <Text style={[styles.chipText, pickerGroup === item && styles.chipTextActive]}>
+                <Text
+                  style={[
+                    styles.chipText,
+                    pickerGroup === item && styles.chipTextActive,
+                  ]}
+                >
                   {item ? MUSCLE_GROUP_LABELS[item] : 'All'}
                 </Text>
               </TouchableOpacity>
@@ -163,9 +205,14 @@ export function RoutineBuilder({ visible, initial, allExercises, onSave, onClose
           <FlatList
             data={filteredExercises}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 40 }}
+            contentContainerStyle={{
+              paddingHorizontal: Spacing.lg,
+              paddingBottom: 40,
+            }}
             renderItem={({ item }) => {
-              const alreadyAdded = !!exercises.find((e) => e.exerciseId === item.id);
+              const alreadyAdded = !!exercises.find(
+                (e) => e.exerciseId === item.id,
+              );
               return (
                 <TouchableOpacity
                   style={[styles.pickRow, alreadyAdded && styles.pickRowAdded]}
@@ -178,7 +225,12 @@ export function RoutineBuilder({ visible, initial, allExercises, onSave, onClose
                       {MUSCLE_GROUP_LABELS[item.muscleGroup]} · {item.equipment}
                     </Text>
                   </View>
-                  <Text style={[styles.pickPlus, alreadyAdded && { color: Colors.textMuted }]}>
+                  <Text
+                    style={[
+                      styles.pickPlus,
+                      alreadyAdded && { color: Colors.textMuted },
+                    ]}
+                  >
                     {alreadyAdded ? '✓' : '+'}
                   </Text>
                 </TouchableOpacity>
@@ -193,7 +245,11 @@ export function RoutineBuilder({ visible, initial, allExercises, onSave, onClose
 
   // ── Main builder ────────────────────────────────────────────────────────
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
       <SafeAreaView style={styles.safe}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
@@ -229,7 +285,10 @@ export function RoutineBuilder({ visible, initial, allExercises, onSave, onClose
                 {EMOJIS.map((e) => (
                   <TouchableOpacity
                     key={e}
-                    style={[styles.emojiOption, emoji === e && styles.emojiSelected]}
+                    style={[
+                      styles.emojiOption,
+                      emoji === e && styles.emojiSelected,
+                    ]}
                     onPress={() => setEmoji(e)}
                   >
                     <Text style={styles.emojiOptionText}>{e}</Text>
@@ -272,14 +331,26 @@ export function RoutineBuilder({ visible, initial, allExercises, onSave, onClose
                     <View style={styles.stepperRow}>
                       <TouchableOpacity
                         style={styles.stepBtn}
-                        onPress={() => updateExercise(ex.exerciseId, 'defaultSets', Math.max(1, ex.defaultSets - 1))}
+                        onPress={() =>
+                          updateExercise(
+                            ex.exerciseId,
+                            'defaultSets',
+                            Math.max(1, ex.defaultSets - 1),
+                          )
+                        }
                       >
                         <Text style={styles.stepBtnText}>−</Text>
                       </TouchableOpacity>
                       <Text style={styles.stepValue}>{ex.defaultSets}</Text>
                       <TouchableOpacity
                         style={styles.stepBtn}
-                        onPress={() => updateExercise(ex.exerciseId, 'defaultSets', Math.min(10, ex.defaultSets + 1))}
+                        onPress={() =>
+                          updateExercise(
+                            ex.exerciseId,
+                            'defaultSets',
+                            Math.min(10, ex.defaultSets + 1),
+                          )
+                        }
                       >
                         <Text style={styles.stepBtnText}>+</Text>
                       </TouchableOpacity>
@@ -291,14 +362,26 @@ export function RoutineBuilder({ visible, initial, allExercises, onSave, onClose
                     <View style={styles.stepperRow}>
                       <TouchableOpacity
                         style={styles.stepBtn}
-                        onPress={() => updateExercise(ex.exerciseId, 'defaultReps', Math.max(1, ex.defaultReps - 1))}
+                        onPress={() =>
+                          updateExercise(
+                            ex.exerciseId,
+                            'defaultReps',
+                            Math.max(1, ex.defaultReps - 1),
+                          )
+                        }
                       >
                         <Text style={styles.stepBtnText}>−</Text>
                       </TouchableOpacity>
                       <Text style={styles.stepValue}>{ex.defaultReps}</Text>
                       <TouchableOpacity
                         style={styles.stepBtn}
-                        onPress={() => updateExercise(ex.exerciseId, 'defaultReps', Math.min(50, ex.defaultReps + 1))}
+                        onPress={() =>
+                          updateExercise(
+                            ex.exerciseId,
+                            'defaultReps',
+                            Math.min(50, ex.defaultReps + 1),
+                          )
+                        }
                       >
                         <Text style={styles.stepBtnText}>+</Text>
                       </TouchableOpacity>
@@ -306,12 +389,18 @@ export function RoutineBuilder({ visible, initial, allExercises, onSave, onClose
                   </View>
 
                   <View style={styles.exDefaultItem}>
-                    <Text style={styles.exDefaultLabel}>LBS</Text>
+                    <Text style={styles.exDefaultLabel}>KG</Text>
                     <TextInput
                       style={styles.weightInput}
-                      value={ex.defaultWeight === 0 ? '' : String(ex.defaultWeight)}
+                      value={
+                        ex.defaultWeight === 0 ? '' : String(ex.defaultWeight)
+                      }
                       onChangeText={(t) =>
-                        updateExercise(ex.exerciseId, 'defaultWeight', parseFloat(t) || 0)
+                        updateExercise(
+                          ex.exerciseId,
+                          'defaultWeight',
+                          parseFloat(t) || 0,
+                        )
                       }
                       keyboardType="decimal-pad"
                       placeholder="0"
@@ -323,7 +412,10 @@ export function RoutineBuilder({ visible, initial, allExercises, onSave, onClose
               </View>
             ))}
 
-            <TouchableOpacity style={styles.addExBtn} onPress={() => setShowPicker(true)}>
+            <TouchableOpacity
+              style={styles.addExBtn}
+              onPress={() => setShowPicker(true)}
+            >
               <Text style={styles.addExBtnText}>+ Add Exercise</Text>
             </TouchableOpacity>
           </ScrollView>
@@ -351,7 +443,11 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   cancelBtn: { fontSize: FontSize.md, color: Colors.textMuted },
-  saveBtn: { fontSize: FontSize.md, color: Colors.accent, fontWeight: FontWeight.bold },
+  saveBtn: {
+    fontSize: FontSize.md,
+    color: Colors.accent,
+    fontWeight: FontWeight.bold,
+  },
 
   body: { padding: Spacing.lg, paddingBottom: 60 },
 
@@ -415,8 +511,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  exIdxText: { fontSize: FontSize.xs, color: Colors.accent, fontWeight: FontWeight.bold },
-  exName: { flex: 1, fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: Colors.textPrimary },
+  exIdxText: {
+    fontSize: FontSize.xs,
+    color: Colors.accent,
+    fontWeight: FontWeight.bold,
+  },
+  exName: {
+    flex: 1,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+    color: Colors.textPrimary,
+  },
   exRemove: { fontSize: FontSize.md, color: Colors.danger },
 
   exDefaults: {
@@ -445,7 +550,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  stepBtnText: { color: Colors.accent, fontSize: FontSize.lg, fontWeight: FontWeight.bold },
+  stepBtnText: {
+    color: Colors.accent,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+  },
   stepValue: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
@@ -493,8 +602,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  pickerBack: { fontSize: FontSize.md, color: Colors.accent, fontWeight: FontWeight.medium },
-  pickerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.textPrimary },
+  pickerBack: {
+    fontSize: FontSize.md,
+    color: Colors.accent,
+    fontWeight: FontWeight.medium,
+  },
+  pickerTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    color: Colors.textPrimary,
+  },
   searchWrap: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
   search: {
     backgroundColor: Colors.bgCard,
@@ -516,7 +633,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   chipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  chipText: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: FontWeight.medium },
+  chipText: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    fontWeight: FontWeight.medium,
+  },
   chipTextActive: { color: '#000', fontWeight: FontWeight.bold },
   pickRow: {
     flexDirection: 'row',
@@ -525,8 +646,17 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   pickRowAdded: { opacity: 0.4 },
-  pickName: { fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: Colors.textPrimary, marginBottom: 2 },
+  pickName: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+    color: Colors.textPrimary,
+    marginBottom: 2,
+  },
   pickMeta: { fontSize: FontSize.sm, color: Colors.textMuted },
-  pickPlus: { fontSize: FontSize.xl, color: Colors.accent, fontWeight: FontWeight.bold },
+  pickPlus: {
+    fontSize: FontSize.xl,
+    color: Colors.accent,
+    fontWeight: FontWeight.bold,
+  },
   sep: { height: 1, backgroundColor: Colors.border },
 });

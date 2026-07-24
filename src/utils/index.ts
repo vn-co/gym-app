@@ -1,4 +1,9 @@
-import type { WorkoutSession, ProgressDataPoint, ProgressStats, ProgressRange } from '../types';
+import type {
+  WorkoutSession,
+  ProgressDataPoint,
+  ProgressStats,
+  ProgressRange,
+} from '../types';
 
 export function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -29,8 +34,8 @@ export function formatTimerDisplay(seconds: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function formatWeight(lbs?: number): string {
-  const n = typeof lbs === 'number' && !Number.isNaN(lbs) ? lbs : 0;
+export function formatWeight(kg?: number): string {
+  const n = typeof kg === 'number' && !Number.isNaN(kg) ? kg : 0;
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return n.toLocaleString();
 }
@@ -123,7 +128,10 @@ export function buildProgressData(
       .filter((s) => s.startTime >= dayStart && s.startTime < dayEnd)
       .reduce((acc, s) => acc + s.totalVolume, 0);
     return {
-      date: range === '7d' ? DAY_LABELS[day.getDay()] : `${day.getMonth() + 1}/${day.getDate()}`,
+      date:
+        range === '7d'
+          ? DAY_LABELS[day.getDay()]
+          : `${day.getMonth() + 1}/${day.getDate()}`,
       timestamp: dayStart,
       volume,
     };
@@ -132,14 +140,18 @@ export function buildProgressData(
   const nonZero = points.map((p) => p.volume).filter((v) => v > 0);
   const low = nonZero.length ? Math.min(...nonZero) : 0;
   const peak = nonZero.length ? Math.max(...nonZero) : 0;
-  const avg = nonZero.length ? Math.round(nonZero.reduce((a, b) => a + b, 0) / nonZero.length) : 0;
+  const avg = nonZero.length
+    ? Math.round(nonZero.reduce((a, b) => a + b, 0) / nonZero.length)
+    : 0;
 
   // percent change vs first half vs second half
   const half = Math.floor(points.length / 2);
   const firstHalf = points.slice(0, half).reduce((a, b) => a + b.volume, 0);
   const secondHalf = points.slice(half).reduce((a, b) => a + b.volume, 0);
   const percentChange =
-    firstHalf > 0 ? Math.round(((secondHalf - firstHalf) / firstHalf) * 100) : 0;
+    firstHalf > 0
+      ? Math.round(((secondHalf - firstHalf) / firstHalf) * 100)
+      : 0;
 
   return { points, stats: { low, avg, peak, percentChange } };
 }
@@ -154,6 +166,8 @@ export function getWeeklyConsistency(sessions: WorkoutSession[]): boolean[] {
   return Array.from({ length: 7 }, (_, i) => {
     const dayStart = monday.getTime() + i * 86400000;
     const dayEnd = dayStart + 86400000;
-    return sessions.some((s) => s.startTime >= dayStart && s.startTime < dayEnd);
+    return sessions.some(
+      (s) => s.startTime >= dayStart && s.startTime < dayEnd,
+    );
   });
 }

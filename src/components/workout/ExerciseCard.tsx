@@ -1,6 +1,12 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Colors, FontSize, FontWeight, Spacing, Radius } from '../../constants/tokens';
+import {
+  Colors,
+  FontSize,
+  FontWeight,
+  Spacing,
+  Radius,
+} from '../../constants/tokens';
 import { SetRow } from './SetRow';
 import { useWorkoutStore } from '../../store/workoutStore';
 import type { WorkoutExercise, SetEntry } from '../../types';
@@ -15,7 +21,8 @@ export function ExerciseCard({ exercise, onRemove }: Props) {
   const updateSet = useWorkoutStore((s) => s.updateSet);
   const toggleSetComplete = useWorkoutStore((s) => s.toggleSetComplete);
 
-  const allDone = exercise.sets.length > 0 && exercise.sets.every((s) => s.completed);
+  const allDone =
+    exercise.sets.length > 0 && exercise.sets.every((s) => s.completed);
   const anyDone = exercise.sets.some((s) => s.completed);
 
   return (
@@ -23,19 +30,37 @@ export function ExerciseCard({ exercise, onRemove }: Props) {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <View style={[styles.dot, allDone ? styles.dotDone : anyDone ? styles.dotPartial : styles.dotDefault]} />
+          <View
+            style={[
+              styles.dot,
+              allDone
+                ? styles.dotDone
+                : anyDone
+                  ? styles.dotPartial
+                  : styles.dotDefault,
+            ]}
+          />
           <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
         </View>
-        <TouchableOpacity onPress={onRemove} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity
+          onPress={onRemove}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
           <Text style={styles.menuDots}>···</Text>
         </TouchableOpacity>
       </View>
 
       {/* Column headers */}
       <View style={styles.colHeaders}>
-        <Text style={[styles.colLabel, { width: 32, textAlign: 'center' }]}>SET</Text>
-        <Text style={[styles.colLabel, { flex: 1, textAlign: 'center' }]}>LBS</Text>
-        <Text style={[styles.colLabel, { flex: 1, textAlign: 'center' }]}>REPS</Text>
+        <Text style={[styles.colLabel, { width: 32, textAlign: 'center' }]}>
+          SET
+        </Text>
+        <Text style={[styles.colLabel, { flex: 1, textAlign: 'center' }]}>
+          KG
+        </Text>
+        <Text style={[styles.colLabel, { flex: 1, textAlign: 'center' }]}>
+          REPS
+        </Text>
         <View style={{ width: 44 }} />
       </View>
 
@@ -51,7 +76,10 @@ export function ExerciseCard({ exercise, onRemove }: Props) {
       ))}
 
       {/* Add set */}
-      <TouchableOpacity style={styles.addSet} onPress={() => addSet(exercise.id)}>
+      <TouchableOpacity
+        style={styles.addSet}
+        onPress={() => addSet(exercise.id)}
+      >
         <Text style={styles.addSetText}>+ Add Set</Text>
       </TouchableOpacity>
     </View>

@@ -274,7 +274,7 @@ export function HomeScreen() {
                       ⏱ {Math.round(session.durationSeconds / 60)} min
                     </Text>
                     <Text style={styles.sessionStat}>
-                      ⚖️ {formatWeight(session.totalVolume)} lbs
+                      ⚖️ {formatWeight(session.totalVolume)} kg
                     </Text>
                     <Text style={styles.sessionStat}>
                       ⚡ {session.totalSets} sets
