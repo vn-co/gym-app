@@ -26,16 +26,17 @@ export function LineChart({ data, width, height = 140 }: Props) {
   const chartW = width - padLeft - padRight;
   const chartH = height - padTop - padBottom;
 
-  const volumes = data.map((d) => d.volume);
-  const maxV = Math.max(...volumes, 1);
+  const volumes = data.map((d) => Number.isFinite(d.volume) ? d.volume : 0);
+  const maxV = Math.max(...volumes, 0);
   const minV = 0;
+  const valueRange = maxV - minV || 1;
 
-  const toX = (i: number) => padLeft + (i / (data.length - 1)) * chartW;
-  const toY = (v: number) => padTop + chartH - ((v - minV) / (maxV - minV)) * chartH;
+  const toX = (i: number) => padLeft + (i / Math.max(data.length - 1, 1)) * chartW;
+  const toY = (v: number) => padTop + chartH - ((v - minV) / valueRange) * chartH;
 
   // Build SVG path
   const pathD = data
-    .map((d, i) => `${i === 0 ? 'M' : 'L'} ${toX(i).toFixed(1)} ${toY(d.volume).toFixed(1)}`)
+    .map((d, i) => `${i === 0 ? 'M' : 'L'} ${toX(i).toFixed(1)} ${toY(Number.isFinite(d.volume) ? d.volume : 0).toFixed(1)}`)
     .join(' ');
 
   // Y-axis grid labels

@@ -1,5 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STORAGE_KEYS, type WorkoutSession, type PersonalRecord, type Exercise, type Routine } from '../types';
+import {
+  STORAGE_KEYS,
+  type WorkoutSession,
+  type PersonalRecord,
+  type Exercise,
+  type Routine,
+} from '../types';
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
@@ -78,7 +84,10 @@ export async function updatePersonalRecords(
     }
   }
 
-  await AsyncStorage.setItem(STORAGE_KEYS.PERSONAL_RECORDS, JSON.stringify(prs));
+  await AsyncStorage.setItem(
+    STORAGE_KEYS.PERSONAL_RECORDS,
+    JSON.stringify(prs),
+  );
 }
 
 // ─── User Name ───────────────────────────────────────────────────────────────
@@ -87,7 +96,7 @@ export async function getUserName(): Promise<string> {
   try {
     return (await AsyncStorage.getItem(STORAGE_KEYS.USER_NAME)) ?? 'Athlete';
   } catch {
-    return 'Athlete';
+    return 'Vlad';
   }
 }
 
@@ -109,13 +118,19 @@ export async function getCustomExercises(): Promise<Exercise[]> {
 export async function saveCustomExercise(exercise: Exercise): Promise<void> {
   const exercises = await getCustomExercises();
   exercises.unshift(exercise);
-  await AsyncStorage.setItem(STORAGE_KEYS.CUSTOM_EXERCISES, JSON.stringify(exercises));
+  await AsyncStorage.setItem(
+    STORAGE_KEYS.CUSTOM_EXERCISES,
+    JSON.stringify(exercises),
+  );
 }
 
 export async function deleteCustomExercise(id: string): Promise<void> {
   const exercises = await getCustomExercises();
   const filtered = exercises.filter((e) => e.id !== id);
-  await AsyncStorage.setItem(STORAGE_KEYS.CUSTOM_EXERCISES, JSON.stringify(filtered));
+  await AsyncStorage.setItem(
+    STORAGE_KEYS.CUSTOM_EXERCISES,
+    JSON.stringify(filtered),
+  );
 }
 
 // ─── Routines ─────────────────────────────────────────────────────────────────

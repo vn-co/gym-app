@@ -29,9 +29,10 @@ export function formatTimerDisplay(seconds: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function formatWeight(lbs: number): string {
-  if (lbs >= 1000) return `${(lbs / 1000).toFixed(1)}k`;
-  return lbs.toLocaleString();
+export function formatWeight(lbs?: number): string {
+  const n = typeof lbs === 'number' && !Number.isNaN(lbs) ? lbs : 0;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return n.toLocaleString();
 }
 
 export function getGreeting(): string {

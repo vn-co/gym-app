@@ -16,8 +16,13 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.vlad.gymv1"
     },
-    "platforms": ["ios"],
-    "plugins": ["expo-router"],
+    "platforms": [
+      "ios"
+    ],
+    "plugins": [
+      "expo-router",
+      "expo-asset"
+    ],
     "experiments": {
       "typedRoutes": true
     }
