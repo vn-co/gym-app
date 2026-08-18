@@ -52,8 +52,15 @@ export function LibraryScreen() {
   const [newEquipment, setNewEquipment] = useState('Barbell');
 
   const loadCustom = useCallback(async () => {
-    const custom = await getCustomExercises();
-    setCustomExercises(custom);
+    try {
+      const custom = await getCustomExercises();
+      setCustomExercises(custom);
+    } catch {
+      Alert.alert(
+        'Couldn’t load saved data',
+        'Your existing data was not changed. Try again.',
+      );
+    }
   }, []);
 
   useFocusEffect(useCallback(() => { loadCustom(); }, [loadCustom]));
@@ -94,12 +101,19 @@ export function LibraryScreen() {
       muscleGroup: newGroup,
       equipment: newEquipment,
     };
-    await saveCustomExercise(exercise);
-    setCreateVisible(false);
-    setNewName('');
-    setNewGroup('chest');
-    setNewEquipment('Barbell');
-    await loadCustom();
+    try {
+      await saveCustomExercise(exercise);
+      setCreateVisible(false);
+      setNewName('');
+      setNewGroup('chest');
+      setNewEquipment('Barbell');
+      await loadCustom();
+    } catch {
+      Alert.alert(
+        'Couldn’t save exercise',
+        'The exercise is still open so you can try again.',
+      );
+    }
   };
 
   const handleDeleteCustom = (ex: Exercise) => {
@@ -112,8 +126,15 @@ export function LibraryScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            await deleteCustomExercise(ex.id);
-            await loadCustom();
+            try {
+              await deleteCustomExercise(ex.id);
+              await loadCustom();
+            } catch {
+              Alert.alert(
+                'Couldn’t delete exercise',
+                'Your saved exercise was not changed. Try again.',
+              );
+            }
           },
         },
       ],

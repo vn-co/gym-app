@@ -7,6 +7,7 @@ import {
   StyleSheet,
   useWindowDimensions,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -38,9 +39,16 @@ export function ProgressScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const [s, p] = await Promise.all([getSessions(), getPersonalRecords()]);
-    setSessions(s);
-    setPrs(p);
+    try {
+      const [s, p] = await Promise.all([getSessions(), getPersonalRecords()]);
+      setSessions(s);
+      setPrs(p);
+    } catch {
+      Alert.alert(
+        'Couldn’t load saved data',
+        'Your existing data was not changed. Try again.',
+      );
+    }
   }, []);
 
   useFocusEffect(
@@ -51,8 +59,11 @@ export function ProgressScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load();
-    setRefreshing(false);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
   }, [load]);
 
   const { points, stats } = buildProgressData(sessions, range);

@@ -6,16 +6,13 @@ import {
   type Exercise,
   type Routine,
 } from '../types';
+import { parseStoredArray } from './storageCodec';
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
 export async function getSessions(): Promise<WorkoutSession[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEYS.SESSIONS);
-    return raw ? (JSON.parse(raw) as WorkoutSession[]) : [];
-  } catch {
-    return [];
-  }
+  const raw = await AsyncStorage.getItem(STORAGE_KEYS.SESSIONS);
+  return parseStoredArray<WorkoutSession>(raw, STORAGE_KEYS.SESSIONS);
 }
 
 export async function saveSession(session: WorkoutSession): Promise<void> {
@@ -48,12 +45,11 @@ export async function getSessionsInRange(
 // ─── Personal Records ────────────────────────────────────────────────────────
 
 export async function getPersonalRecords(): Promise<PersonalRecord[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEYS.PERSONAL_RECORDS);
-    return raw ? (JSON.parse(raw) as PersonalRecord[]) : [];
-  } catch {
-    return [];
-  }
+  const raw = await AsyncStorage.getItem(STORAGE_KEYS.PERSONAL_RECORDS);
+  return parseStoredArray<PersonalRecord>(
+    raw,
+    STORAGE_KEYS.PERSONAL_RECORDS,
+  );
 }
 
 export async function updatePersonalRecords(
@@ -94,7 +90,7 @@ export async function updatePersonalRecords(
 
 export async function getUserName(): Promise<string> {
   try {
-    return (await AsyncStorage.getItem(STORAGE_KEYS.USER_NAME)) ?? 'Athlete';
+    return (await AsyncStorage.getItem(STORAGE_KEYS.USER_NAME)) ?? 'Vlad';
   } catch {
     return 'Vlad';
   }
@@ -107,12 +103,8 @@ export async function setUserName(name: string): Promise<void> {
 // ─── Custom Exercises ─────────────────────────────────────────────────────────
 
 export async function getCustomExercises(): Promise<Exercise[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEYS.CUSTOM_EXERCISES);
-    return raw ? (JSON.parse(raw) as Exercise[]) : [];
-  } catch {
-    return [];
-  }
+  const raw = await AsyncStorage.getItem(STORAGE_KEYS.CUSTOM_EXERCISES);
+  return parseStoredArray<Exercise>(raw, STORAGE_KEYS.CUSTOM_EXERCISES);
 }
 
 export async function saveCustomExercise(exercise: Exercise): Promise<void> {
@@ -136,12 +128,8 @@ export async function deleteCustomExercise(id: string): Promise<void> {
 // ─── Routines ─────────────────────────────────────────────────────────────────
 
 export async function getRoutines(): Promise<Routine[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEYS.ROUTINES);
-    return raw ? (JSON.parse(raw) as Routine[]) : [];
-  } catch {
-    return [];
-  }
+  const raw = await AsyncStorage.getItem(STORAGE_KEYS.ROUTINES);
+  return parseStoredArray<Routine>(raw, STORAGE_KEYS.ROUTINES);
 }
 
 export async function saveRoutine(routine: Routine): Promise<void> {

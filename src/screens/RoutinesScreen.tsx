@@ -29,18 +29,31 @@ export function RoutinesScreen() {
   const activeSession = useWorkoutStore((s) => s.session);
 
   const load = useCallback(async () => {
-    const [r, custom] = await Promise.all([getRoutines(), getCustomExercises()]);
-    setRoutines(r);
-    // Merge static + custom, custom first so they show up at top of picker
-    setAllExercises([...custom, ...EXERCISE_LIBRARY]);
+    try {
+      const [r, custom] = await Promise.all([
+        getRoutines(),
+        getCustomExercises(),
+      ]);
+      setRoutines(r);
+      // Merge static + custom, custom first so they show up at top of picker
+      setAllExercises([...custom, ...EXERCISE_LIBRARY]);
+    } catch {
+      Alert.alert(
+        'Couldn’t load saved data',
+        'Your existing data was not changed. Try again.',
+      );
+    }
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load();
-    setRefreshing(false);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
   }, [load]);
 
   const handleStartRoutine = async (routine: Routine) => {
@@ -53,21 +66,30 @@ export function RoutinesScreen() {
       return;
     }
 
-    await touchRoutineLastUsed(routine.id);
-
-    startSessionFromRoutine(
-      routine.name,
-      routine.exercises,
-    );
-
-    router.push('/(tabs)/workout');
+    try {
+      await touchRoutineLastUsed(routine.id);
+      startSessionFromRoutine(routine.name, routine.exercises);
+      router.push('/(tabs)/workout');
+    } catch {
+      Alert.alert(
+        'Couldn’t start routine',
+        'Your saved routines could not be updated. Try again.',
+      );
+    }
   };
 
   const handleSaveRoutine = async (routine: Routine) => {
-    await saveRoutine(routine);
-    setBuilderVisible(false);
-    setEditingRoutine(null);
-    await load();
+    try {
+      await saveRoutine(routine);
+      setBuilderVisible(false);
+      setEditingRoutine(null);
+      await load();
+    } catch {
+      Alert.alert(
+        'Couldn’t save routine',
+        'The routine is still open so you can try again.',
+      );
+    }
   };
 
   const handleDeleteRoutine = (routine: Routine) => {
@@ -80,8 +102,15 @@ export function RoutinesScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            await deleteRoutine(routine.id);
-            await load();
+            try {
+              await deleteRoutine(routine.id);
+              await load();
+            } catch {
+              Alert.alert(
+                'Couldn’t delete routine',
+                'Your saved routine was not changed. Try again.',
+              );
+            }
           },
         },
       ],

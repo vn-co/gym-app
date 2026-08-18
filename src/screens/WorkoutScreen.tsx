@@ -87,9 +87,16 @@ export function WorkoutScreen() {
             totalVolume,
             totalSets,
           };
-          await saveSession(completed);
-          await updatePersonalRecords(completed);
-          cancelSession();
+          try {
+            await saveSession(completed);
+            await updatePersonalRecords(completed);
+            cancelSession();
+          } catch {
+            Alert.alert(
+              'Couldn’t save workout',
+              'Your workout is still open so you can try again.',
+            );
+          }
         },
       },
     ]);

@@ -53,15 +53,22 @@ export function HomeScreen() {
   );
 
   const load = useCallback(async () => {
-    const [name, allSessions, allRoutines] = await Promise.all([
-      getUserName(),
-      getSessions(),
-      getRoutines(),
-    ]);
-    setUserName(name);
-    setSessions(allSessions);
-    setRoutines(allRoutines);
-    setConsistency(getWeeklyConsistency(allSessions));
+    try {
+      const [name, allSessions, allRoutines] = await Promise.all([
+        getUserName(),
+        getSessions(),
+        getRoutines(),
+      ]);
+      setUserName(name);
+      setSessions(allSessions);
+      setRoutines(allRoutines);
+      setConsistency(getWeeklyConsistency(allSessions));
+    } catch {
+      Alert.alert(
+        'Couldn’t load saved data',
+        'Your existing data was not changed. Try again.',
+      );
+    }
   }, []);
 
   const handleStartRoutine = async (routine: Routine) => {
@@ -69,12 +76,16 @@ export function HomeScreen() {
       router.push('/(tabs)/workout');
       return;
     }
-    await touchRoutineLastUsed(routine.id);
-    startSessionFromRoutine(
-      routine.name,
-      routine.exercises,
-    );
-    router.push('/(tabs)/workout');
+    try {
+      await touchRoutineLastUsed(routine.id);
+      startSessionFromRoutine(routine.name, routine.exercises);
+      router.push('/(tabs)/workout');
+    } catch {
+      Alert.alert(
+        'Couldn’t start routine',
+        'Your saved routines could not be updated. Try again.',
+      );
+    }
   };
 
   useFocusEffect(
@@ -85,8 +96,11 @@ export function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load();
-    setRefreshing(false);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
   }, [load]);
 
   const handleStartWorkout = () => {
