@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, FontSize, FontWeight, Spacing, Radius } from '../../constants/tokens';
 import { useWorkoutStore } from '../../store/workoutStore';

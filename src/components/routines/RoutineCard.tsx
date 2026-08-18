@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, FontSize, FontWeight, Spacing, Radius } from '../../constants/tokens';
 import type { Routine } from '../../types';
@@ -12,10 +11,6 @@ interface Props {
 }
 
 export function RoutineCard({ routine, onStart, onEdit, onDelete, compact }: Props) {
-  const muscleGroups = Array.from(
-    new Set(routine.exercises.map((e) => e.muscleGroup)),
-  ).slice(0, 3);
-
   const totalSets = routine.exercises.reduce((acc, e) => acc + e.defaultSets, 0);
 
   if (compact) {

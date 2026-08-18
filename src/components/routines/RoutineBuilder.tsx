@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   View,
@@ -20,16 +20,12 @@ import {
   Spacing,
   Radius,
 } from '../../constants/tokens';
-import {
-  EXERCISE_LIBRARY,
-  MUSCLE_GROUP_LABELS,
-} from '../../constants/exercises';
+import { MUSCLE_GROUP_LABELS } from '../../constants/exercises';
 import { generateId, parseNumericInput } from '../../utils';
 import type {
   Routine,
   RoutineExercise,
   Exercise,
-  MuscleGroup,
 } from '../../types';
 
 const EMOJIS = ['💪', '🏋️', '🔥', '⚡', '🎯', '🦵', '🏃', '🧠', '🌊', '🥊'];

@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import {
   Colors,
@@ -9,7 +8,7 @@ import {
 } from '../../constants/tokens';
 import { SetRow } from './SetRow';
 import { useWorkoutStore } from '../../store/workoutStore';
-import type { WorkoutExercise, SetEntry } from '../../types';
+import type { WorkoutExercise } from '../../types';
 
 interface Props {
   exercise: WorkoutExercise;

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -27,7 +27,6 @@ import {
   getGreeting,
   getWeeklyConsistency,
   formatWeight,
-  formatDuration,
   isToday,
   formatSessionTime,
 } from '../utils';
