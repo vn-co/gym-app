@@ -9,12 +9,23 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, FontSize, FontWeight, Spacing, Radius } from '../constants/tokens';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+import {
+  Colors,
+  FontSize,
+  FontWeight,
+  Radius,
+  Spacing,
+  TabBarMetrics,
+} from '../constants/tokens';
 import { useWorkoutStore } from '../store/workoutStore';
 import { SessionHeader } from '../components/workout/SessionHeader';
 import { ExerciseCard } from '../components/workout/ExerciseCard';
 import { ExercisePicker } from '../components/workout/ExercisePicker';
+import { WorkoutActionBar } from '../components/workout/WorkoutActionBar';
 import {
   getCustomExercises,
   saveSession,
@@ -25,6 +36,7 @@ import { finishActiveWorkout } from '../services/finishActiveWorkout';
 import type { Exercise } from '../types';
 
 export function WorkoutScreen() {
+  const insets = useSafeAreaInsets();
   const session = useWorkoutStore((s) => s.session);
   const startSession = useWorkoutStore((s) => s.startSession);
   const cancelSession = useWorkoutStore((s) => s.cancelSession);
@@ -37,6 +49,9 @@ export function WorkoutScreen() {
   );
   const [nameModalVisible, setNameModalVisible] = useState(false);
   const [workoutName, setWorkoutName] = useState('');
+  const tabBottom = Math.max(insets.bottom, TabBarMetrics.bottomGap);
+  const actionBottom = tabBottom + TabBarMetrics.height + Spacing.sm;
+  const scrollBottomInset = actionBottom + 68;
 
   const handleStartWorkout = () => {
     setWorkoutName('My Workout');
@@ -85,7 +100,6 @@ export function WorkoutScreen() {
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Finish',
-        style: 'destructive',
         onPress: async () => {
           try {
             await finishActiveWorkout(session, Date.now(), {
@@ -114,7 +128,7 @@ export function WorkoutScreen() {
   // ── No active session ─────────────────────────────────────────────────────
   if (!session) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <View style={styles.noSession}>
           <Text style={styles.noSessionEmoji}>🏋️</Text>
           <Text style={styles.noSessionTitle}>Ready to train?</Text>
@@ -160,10 +174,13 @@ export function WorkoutScreen() {
 
   // ── Active session ────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: scrollBottomInset },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -182,25 +199,17 @@ export function WorkoutScreen() {
           />
         ))}
 
-        {/* Add Exercise */}
-        <TouchableOpacity
-          style={styles.addExerciseBtn}
-          onPress={handleOpenPicker}
-        >
-          <Text style={styles.addExerciseBtnText}>+ Add Exercise</Text>
-        </TouchableOpacity>
-
-        {/* Finish Workout */}
-        <TouchableOpacity style={styles.finishBtn} onPress={handleFinishWorkout}>
-          <Text style={styles.finishIcon}>⊗</Text>
-          <Text style={styles.finishBtnText}>Finish Workout</Text>
-        </TouchableOpacity>
-
         {/* Cancel */}
         <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelWorkout}>
           <Text style={styles.cancelBtnText}>Cancel Workout</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <WorkoutActionBar
+        bottom={actionBottom}
+        onAddExercise={handleOpenPicker}
+        onFinish={handleFinishWorkout}
+      />
 
       <ExercisePicker
         visible={pickerVisible}
@@ -215,7 +224,7 @@ export function WorkoutScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
   scroll: { flex: 1 },
-  content: { padding: Spacing.lg, paddingBottom: 100 },
+  content: { padding: Spacing.lg },
 
   noSession: {
     flex: 1,
@@ -246,40 +255,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
     color: '#000',
-  },
-
-  addExerciseBtn: {
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    borderStyle: 'dashed',
-    borderRadius: Radius.lg,
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  addExerciseBtnText: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.semibold,
-    color: Colors.accent,
-  },
-
-  finishBtn: {
-    backgroundColor: Colors.dangerBg,
-    borderRadius: Radius.lg,
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.danger,
-  },
-  finishIcon: { fontSize: FontSize.lg, color: Colors.danger },
-  finishBtnText: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.danger,
   },
 
   cancelBtn: {

@@ -1,8 +1,22 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Colors, FontSize, FontWeight, Spacing, Radius } from '../../constants/tokens';
+import { useEffect, useRef } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Colors,
+  FontSize,
+  FontWeight,
+  MotionDuration,
+  Radius,
+  Spacing,
+} from '../../constants/tokens';
 import { useWorkoutStore } from '../../store/workoutStore';
 import { formatTimerDisplay } from '../../utils';
 import { useWorkoutTimer } from '../../hooks/useWorkoutTimer';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
+import {
+  getMotionDuration,
+  getProgressPercentage,
+} from '../../utils/uiPresentation';
+import { AppIcon } from '../icons/AppIcon';
 
 export function SessionHeader() {
   const session = useWorkoutStore((s) => s.session);
@@ -11,103 +25,142 @@ export function SessionHeader() {
   const completedSets = useWorkoutStore((s) => s.completedSetsCount());
   const totalSets = useWorkoutStore((s) => s.totalSetsCount());
   const elapsedSeconds = useWorkoutTimer(session);
+  const reduceMotion = useReducedMotion();
+  const percentage = getProgressPercentage(completedSets, totalSets);
+  const progress = useRef(new Animated.Value(percentage)).current;
+
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: percentage,
+      duration: getMotionDuration(reduceMotion, MotionDuration.standard),
+      useNativeDriver: false,
+    }).start();
+  }, [percentage, progress, reduceMotion]);
 
   if (!session) return null;
 
-  const progress = totalSets > 0 ? completedSets / totalSets : 0;
-  const pct = Math.round(progress * 100);
+  const isPaused = session.runningSince === null;
+  const progressWidth = progress.interpolate({
+    inputRange: [0, 100],
+    outputRange: ['0%', '100%'],
+  });
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.label}>ACTIVE SESSION</Text>
+    <View style={styles.header}>
+      <Text style={styles.label}>WORKOUT IN PROGRESS</Text>
 
-      <View style={styles.timerRow}>
-        <Text style={styles.timer}>{formatTimerDisplay(elapsedSeconds)}</Text>
-        <View style={styles.controls}>
-          <TouchableOpacity
-            style={styles.controlBtn}
-            onPress={session.runningSince === null ? resumeSession : pauseSession}
-          >
-            <Text style={styles.controlIcon}>
-              {session.runningSince === null ? '▶' : '⏸'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.titleRow}>
+        <Text style={styles.title} numberOfLines={1}>
+          {session.workoutName}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={isPaused ? 'Resume workout timer' : 'Pause workout timer'}
+          hitSlop={4}
+          onPress={isPaused ? resumeSession : pauseSession}
+          style={({ pressed }) => [
+            styles.controlButton,
+            pressed && styles.controlButtonPressed,
+          ]}
+        >
+          <AppIcon
+            name={isPaused ? 'play' : 'pause'}
+            size={20}
+            color={Colors.accent}
+          />
+        </Pressable>
       </View>
 
-      {/* Progress */}
+      <Text
+        accessibilityLiveRegion="none"
+        accessibilityLabel={`Workout time ${formatTimerDisplay(elapsedSeconds)}`}
+        style={styles.timer}
+      >
+        {formatTimerDisplay(elapsedSeconds)}
+      </Text>
+
       <View style={styles.progressRow}>
         <Text style={styles.progressText}>
-          {completedSets} / {totalSets} sets done
+          {completedSets} of {totalSets} sets complete
         </Text>
-        <Text style={styles.progressPct}>{pct}%</Text>
+        <Text style={styles.progressPercentage}>{percentage}%</Text>
       </View>
       <View style={styles.progressBar}>
-        <View style={[styles.progressFill, { width: `${pct}%` }]} />
+        <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
+  header: {
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xl,
     marginBottom: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   label: {
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
+    fontWeight: FontWeight.semibold,
     color: Colors.textMuted,
-    letterSpacing: 1,
-    marginBottom: Spacing.sm,
+    letterSpacing: 1.2,
+    marginBottom: Spacing.md,
   },
-  timerRow: {
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
+    gap: Spacing.md,
+    marginBottom: Spacing.xs,
+  },
+  title: {
+    flex: 1,
+    fontSize: FontSize.xxl,
+    fontWeight: FontWeight.bold,
+    color: Colors.textPrimary,
+    letterSpacing: -0.5,
   },
   timer: {
-    fontSize: FontSize.display,
-    fontWeight: FontWeight.heavy,
-    color: Colors.accent,
-    letterSpacing: 2,
+    fontSize: FontSize.xxl,
+    fontWeight: FontWeight.semibold,
+    color: Colors.textSecondary,
+    letterSpacing: 0.4,
     fontVariant: ['tabular-nums'],
+    marginBottom: Spacing.xl,
   },
-  controls: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  controlBtn: {
+  controlButton: {
     width: 44,
     height: 44,
     borderRadius: Radius.full,
     backgroundColor: Colors.bgCardAlt,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  controlIcon: {
-    color: Colors.accent,
-    fontSize: FontSize.lg,
+  controlButtonPressed: {
+    opacity: 0.72,
+    transform: [{ scale: 0.96 }],
   },
   progressRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: Spacing.sm,
   },
   progressText: {
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
   },
-  progressPct: {
+  progressPercentage: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
     color: Colors.accent,
+    fontVariant: ['tabular-nums'],
   },
   progressBar: {
-    height: 5,
+    height: 6,
     backgroundColor: Colors.border,
     borderRadius: Radius.full,
     overflow: 'hidden',
