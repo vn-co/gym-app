@@ -384,7 +384,7 @@ git commit -m "feat: restore unfinished workouts after relaunch"
 - Produces: `finishActiveWorkout(session, endTime, dependencies): Promise<WorkoutSession>`
 - Dependencies: `saveSession`, `updatePersonalRecords`, and `clearActiveSession`
 
-- [ ] **Step 1: Write failing success and failure tests**
+- [x] **Step 1: Write failing success and failure tests**
 
 Create a running session with one completed `60 kg × 8` set, `2_000` accumulated milliseconds, and `runningSince: 10_000`. Finish at `13_500` and assert duration `5`, volume `480`, one set, both writes called in order, and clear called last.
 
@@ -404,13 +404,13 @@ await assert.rejects(
 assert.deepEqual(calls, []);
 ~~~
 
-- [ ] **Step 2: Run the completion test to verify RED**
+- [x] **Step 2: Run the completion test to verify RED**
 
 Run: `npx tsx --test tests/finishActiveWorkout.test.mjs`
 
 Expected: FAIL because `finishActiveWorkout` does not exist.
 
-- [ ] **Step 3: Implement completion and simplify the screen**
+- [x] **Step 3: Implement completion and simplify the screen**
 
 Build the completed `WorkoutSession` with `getElapsedSeconds(session, endTime)`, completed-set volume, and completed-set count. Execute in this order:
 
@@ -423,7 +423,7 @@ return completed;
 
 Call this workflow from the confirmed Finish handler, passing the existing storage functions and `cancelSession`. Keep the existing catch alert and remove duplicated total construction from the screen.
 
-- [ ] **Step 4: Verify GREEN and commit**
+- [x] **Step 4: Verify GREEN and commit**
 
 Run:
 

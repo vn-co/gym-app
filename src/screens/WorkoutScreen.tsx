@@ -21,9 +21,8 @@ import {
   updatePersonalRecords,
 } from '../services/storage';
 import { mergeExerciseLibrary } from '../constants/exercises';
-import { calcVolume } from '../utils';
-import { getElapsedSeconds } from '../store/activeSessionTimer';
-import type { Exercise, WorkoutSession } from '../types';
+import { finishActiveWorkout } from '../services/finishActiveWorkout';
+import type { Exercise } from '../types';
 
 export function WorkoutScreen() {
   const session = useWorkoutStore((s) => s.session);
@@ -88,28 +87,12 @@ export function WorkoutScreen() {
         text: 'Finish',
         style: 'destructive',
         onPress: async () => {
-          const totalVolume = session.exercises.reduce((acc, ex) => {
-            return acc + calcVolume(ex.sets);
-          }, 0);
-          const totalSets = session.exercises.reduce(
-            (acc, ex) => acc + ex.sets.filter((s) => s.completed).length,
-            0,
-          );
-          const endTime = Date.now();
-          const completed: WorkoutSession = {
-            id: session.sessionId,
-            name: session.workoutName,
-            startTime: session.startTime,
-            endTime,
-            durationSeconds: getElapsedSeconds(session, endTime),
-            exercises: session.exercises,
-            totalVolume,
-            totalSets,
-          };
           try {
-            await saveSession(completed);
-            await updatePersonalRecords(completed);
-            cancelSession();
+            await finishActiveWorkout(session, Date.now(), {
+              saveSession,
+              updatePersonalRecords,
+              clearActiveSession: cancelSession,
+            });
           } catch {
             Alert.alert(
               'Couldn’t save workout',
