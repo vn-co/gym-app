@@ -226,7 +226,7 @@ git commit -m "fix: make active workout timing lifecycle-safe"
 - Produces: `createWorkoutStore(storage, callbacks)`
 - Produces: stable `subscribePersistenceIssue` and `getPersistenceIssueSnapshot`
 
-- [ ] **Step 1: Write failing validation and ordering tests**
+- [x] **Step 1: Write failing validation and ordering tests**
 
 Create `tests/activeSessionPersistence.test.mjs`. Assert valid running, paused, and null payloads parse. Assert missing fields, negative accumulated time, malformed exercises, and invalid JSON hydration are rejected or reported.
 
@@ -246,13 +246,13 @@ test('ordered storage leaves the newest write in place', async () => {
 
 Also make a write reject twice with the same error and assert the issue signal changes only once. Then allow a write to succeed and assert the issue snapshot clears.
 
-- [ ] **Step 2: Run the persistence test to verify RED**
+- [x] **Step 2: Run the persistence test to verify RED**
 
 Run: `npx tsx --test tests/activeSessionPersistence.test.mjs`
 
 Expected: FAIL because the persistence module and exported interfaces do not exist.
 
-- [ ] **Step 3: Implement validation and the ordered adapter**
+- [x] **Step 3: Implement validation and the ordered adapter**
 
 Add `ACTIVE_SESSION: 'gym_active_session'` to `STORAGE_KEYS`.
 
@@ -307,7 +307,7 @@ export function createOrderedStateStorage(
 
 Keep one module-level `PersistenceIssue | null` snapshot. Coalesce identical unresolved operation/message pairs, increment its ID only for a new issue, notify subscribers on change, and clear after a successful storage operation. This signal must never update Zustand.
 
-- [ ] **Step 4: Wrap the store in versioned persistence**
+- [x] **Step 4: Wrap the store in versioned persistence**
 
 Export `createWorkoutStore(stateStorage, callbacks)` and use it for the production `useWorkoutStore` with AsyncStorage. Configure:
 
@@ -333,7 +333,7 @@ Export `createWorkoutStore(stateStorage, callbacks)` and use it for the producti
 
 Update `tests/workoutStore.test.mjs` to build a store with in-memory string storage, avoiding production native storage calls in Node.
 
-- [ ] **Step 5: Add explicit hydration and failure feedback**
+- [x] **Step 5: Add explicit hydration and failure feedback**
 
 Create `WorkoutPersistenceGate`. On mount, call `useWorkoutStore.persist.rehydrate()` and set local `ready` in `finally`, including errors. Subscribe to the external issue snapshot with `useSyncExternalStore`.
 
@@ -341,7 +341,7 @@ Alert once per issue ID with title **Couldn't protect active workout** and messa
 
 Before readiness, render a full-flex view using `Colors.bg`. After readiness, render children. Wrap the root `Stack` with this gate inside `SafeAreaProvider`. Never navigate from the gate.
 
-- [ ] **Step 6: Add integration assertions**
+- [x] **Step 6: Add integration assertions**
 
 Using memory storage and the exported factory, assert:
 
@@ -353,7 +353,7 @@ Using memory storage and the exported factory, assert:
 - cancel persists `session: null`;
 - repeated elapsed-time calculations do not increase the write count.
 
-- [ ] **Step 7: Verify GREEN and commit**
+- [x] **Step 7: Verify GREEN and commit**
 
 Run:
 

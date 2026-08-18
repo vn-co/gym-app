@@ -1,10 +1,28 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { useWorkoutStore } from '../src/store/workoutStore.ts';
+import { createWorkoutStore } from '../src/store/workoutStore.ts';
 
-test('starts a routine with each exercise defaults', () => {
-  useWorkoutStore.getState().cancelSession();
-  useWorkoutStore.getState().startSessionFromRoutine('Push', [
+function createMemoryStorage() {
+  const data = new Map();
+  return {
+    data,
+    getItem: async (name) => data.get(name) ?? null,
+    setItem: async (name, value) => {
+      data.set(name, value);
+    },
+    removeItem: async (name) => {
+      data.delete(name);
+    },
+  };
+}
+
+test('starts a routine with each exercise defaults', async () => {
+  const memory = createMemoryStorage();
+  const { store, flushPersistence } = createWorkoutStore(memory, {
+    onIssue: () => {},
+    onRecovered: () => {},
+  });
+  store.getState().startSessionFromRoutine('Push', [
     {
       exerciseId: 'bench_press',
       exerciseName: 'Bench Press',
@@ -14,14 +32,15 @@ test('starts a routine with each exercise defaults', () => {
       defaultWeight: 60,
     },
   ]);
+  await flushPersistence();
 
-  const exercise = useWorkoutStore.getState().session?.exercises[0];
+  const exercise = store.getState().session?.exercises[0];
   assert.equal(
-    typeof useWorkoutStore.getState().session?.runningSince,
+    typeof store.getState().session?.runningSince,
     'number',
   );
   assert.equal(
-    useWorkoutStore.getState().session?.accumulatedMilliseconds,
+    store.getState().session?.accumulatedMilliseconds,
     0,
   );
   assert.equal(exercise?.sets.length, 2);

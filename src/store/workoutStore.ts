@@ -1,20 +1,32 @@
-import { create } from 'zustand';
-import type {
-  ActiveSession,
-  RoutineExercise,
-  SetEntry,
-  WorkoutExercise,
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { create, type StateCreator } from 'zustand';
+import {
+  createJSONStorage,
+  persist,
+  type StateStorage,
+} from 'zustand/middleware';
+import {
+  STORAGE_KEYS,
+  type ActiveSession,
+  type RoutineExercise,
+  type SetEntry,
+  type WorkoutExercise,
 } from '../types';
 import { generateId } from '../utils';
 import {
   pauseActiveSession,
   resumeActiveSession,
 } from './activeSessionTimer';
+import {
+  activeSessionPersistenceCallbacks,
+  createOrderedStateStorage,
+  parsePersistedWorkoutState,
+  type PersistenceCallbacks,
+} from './activeSessionPersistence';
 
-interface WorkoutStore {
+export interface WorkoutStore {
   session: ActiveSession | null;
 
-  // Session lifecycle
   startSession: (name: string) => void;
   startSessionFromRoutine: (
     name: string,
@@ -24,22 +36,23 @@ interface WorkoutStore {
   resumeSession: () => void;
   cancelSession: () => void;
 
-  // Exercise management
   addExercise: (exercise: Omit<WorkoutExercise, 'id' | 'sets'>) => void;
   removeExercise: (exerciseId: string) => void;
 
-  // Set management
   addSet: (workoutExerciseId: string, set?: Partial<SetEntry>) => void;
-  updateSet: (workoutExerciseId: string, setId: string, updates: Partial<SetEntry>) => void;
+  updateSet: (
+    workoutExerciseId: string,
+    setId: string,
+    updates: Partial<SetEntry>,
+  ) => void;
   removeSet: (workoutExerciseId: string, setId: string) => void;
   toggleSetComplete: (workoutExerciseId: string, setId: string) => void;
 
-  // Selectors
   completedSetsCount: () => number;
   totalSetsCount: () => number;
 }
 
-export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
+const createWorkoutState: StateCreator<WorkoutStore> = (set, get) => ({
   session: null,
 
   startSession: (name) => {
@@ -100,7 +113,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   addExercise: (exercise) =>
     set((state) => {
       if (!state.session) return state;
-      const newEx: WorkoutExercise = {
+      const newExercise: WorkoutExercise = {
         ...exercise,
         id: generateId(),
         sets: [
@@ -115,7 +128,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       return {
         session: {
           ...state.session,
-          exercises: [...state.session.exercises, newEx],
+          exercises: [...state.session.exercises, newExercise],
         },
       };
     }),
@@ -126,7 +139,9 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       return {
         session: {
           ...state.session,
-          exercises: state.session.exercises.filter((e) => e.id !== exerciseId),
+          exercises: state.session.exercises.filter(
+            (exercise) => exercise.id !== exerciseId,
+          ),
         },
       };
     }),
@@ -134,17 +149,16 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   addSet: (workoutExerciseId, partial) =>
     set((state) => {
       if (!state.session) return state;
-      const exercises = state.session.exercises.map((ex) => {
-        if (ex.id !== workoutExerciseId) return ex;
-        // Pre-fill from last set
-        const lastSet = ex.sets[ex.sets.length - 1];
+      const exercises = state.session.exercises.map((exercise) => {
+        if (exercise.id !== workoutExerciseId) return exercise;
+        const lastSet = exercise.sets[exercise.sets.length - 1];
         const newSet: SetEntry = {
           id: generateId(),
           weight: partial?.weight ?? lastSet?.weight ?? 0,
           reps: partial?.reps ?? lastSet?.reps ?? 0,
           completed: false,
         };
-        return { ...ex, sets: [...ex.sets, newSet] };
+        return { ...exercise, sets: [...exercise.sets, newSet] };
       });
       return { session: { ...state.session, exercises } };
     }),
@@ -152,10 +166,12 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   updateSet: (workoutExerciseId, setId, updates) =>
     set((state) => {
       if (!state.session) return state;
-      const exercises = state.session.exercises.map((ex) => {
-        if (ex.id !== workoutExerciseId) return ex;
-        const sets = ex.sets.map((s) => (s.id === setId ? { ...s, ...updates } : s));
-        return { ...ex, sets };
+      const exercises = state.session.exercises.map((exercise) => {
+        if (exercise.id !== workoutExerciseId) return exercise;
+        const sets = exercise.sets.map((setEntry) =>
+          setEntry.id === setId ? { ...setEntry, ...updates } : setEntry,
+        );
+        return { ...exercise, sets };
       });
       return { session: { ...state.session, exercises } };
     }),
@@ -163,9 +179,12 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   removeSet: (workoutExerciseId, setId) =>
     set((state) => {
       if (!state.session) return state;
-      const exercises = state.session.exercises.map((ex) => {
-        if (ex.id !== workoutExerciseId) return ex;
-        return { ...ex, sets: ex.sets.filter((s) => s.id !== setId) };
+      const exercises = state.session.exercises.map((exercise) => {
+        if (exercise.id !== workoutExerciseId) return exercise;
+        return {
+          ...exercise,
+          sets: exercise.sets.filter((setEntry) => setEntry.id !== setId),
+        };
       });
       return { session: { ...state.session, exercises } };
     }),
@@ -173,12 +192,14 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   toggleSetComplete: (workoutExerciseId, setId) =>
     set((state) => {
       if (!state.session) return state;
-      const exercises = state.session.exercises.map((ex) => {
-        if (ex.id !== workoutExerciseId) return ex;
-        const sets = ex.sets.map((s) =>
-          s.id === setId ? { ...s, completed: !s.completed } : s,
+      const exercises = state.session.exercises.map((exercise) => {
+        if (exercise.id !== workoutExerciseId) return exercise;
+        const sets = exercise.sets.map((setEntry) =>
+          setEntry.id === setId
+            ? { ...setEntry, completed: !setEntry.completed }
+            : setEntry,
         );
-        return { ...ex, sets };
+        return { ...exercise, sets };
       });
       return { session: { ...state.session, exercises } };
     }),
@@ -187,7 +208,8 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     const { session } = get();
     if (!session) return 0;
     return session.exercises.reduce(
-      (acc, ex) => acc + ex.sets.filter((s) => s.completed).length,
+      (count, exercise) =>
+        count + exercise.sets.filter((setEntry) => setEntry.completed).length,
       0,
     );
   },
@@ -195,6 +217,44 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   totalSetsCount: () => {
     const { session } = get();
     if (!session) return 0;
-    return session.exercises.reduce((acc, ex) => acc + ex.sets.length, 0);
+    return session.exercises.reduce(
+      (count, exercise) => count + exercise.sets.length,
+      0,
+    );
   },
-}));
+});
+
+export function createWorkoutStore(
+  stateStorage: StateStorage<Promise<void>>,
+  callbacks: PersistenceCallbacks = activeSessionPersistenceCallbacks,
+) {
+  const ordered = createOrderedStateStorage(stateStorage, callbacks);
+  const store = create<WorkoutStore>()(
+    persist(createWorkoutState, {
+      name: STORAGE_KEYS.ACTIVE_SESSION,
+      version: 1,
+      storage: createJSONStorage(() => ordered.storage),
+      partialize: (state) => ({ session: state.session }),
+      skipHydration: true,
+      merge: (persisted, current) =>
+        persisted === undefined
+          ? current
+          : {
+              ...current,
+              ...parsePersistedWorkoutState(persisted),
+            },
+      migrate: () => {
+        throw new Error('Unsupported active session version');
+      },
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) callbacks.onIssue('read', error);
+      },
+    }),
+  );
+
+  return { store, flushPersistence: ordered.flush };
+}
+
+const productionWorkoutStore = createWorkoutStore(AsyncStorage);
+
+export const useWorkoutStore = productionWorkoutStore.store;

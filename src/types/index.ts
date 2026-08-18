@@ -116,4 +116,5 @@ export const STORAGE_KEYS = {
   USER_NAME: 'gym_user_name',
   CUSTOM_EXERCISES: 'gym_custom_exercises',
   ROUTINES: 'gym_routines',
+  ACTIVE_SESSION: 'gym_active_session',
 } as const;
