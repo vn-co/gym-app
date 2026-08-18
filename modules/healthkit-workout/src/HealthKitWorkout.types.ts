@@ -1,4 +1,4 @@
-import type { NativeModule } from 'expo';
+import { NativeModule } from 'expo-modules-core';
 
 export type NativeHealthRecord = Record<string, unknown>;
 export type NativeHealthValue = number | null;
@@ -36,8 +36,7 @@ export type HealthKitWorkoutModuleEvents = {
   onLiveMetrics: (payload: NativeLiveMetricsPayload) => void;
 };
 
-export interface NativeHealthKitWorkoutModule
-  extends NativeModule<HealthKitWorkoutModuleEvents> {
+export declare class NativeHealthKitWorkoutModule extends NativeModule<HealthKitWorkoutModuleEvents> {
   isHealthDataAvailable(): Promise<boolean>;
   requestAuthorization(): Promise<void>;
   readTodayActivity(): Promise<NativeHealthRecord>;
