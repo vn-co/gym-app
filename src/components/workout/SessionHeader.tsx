@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, FontSize, FontWeight, Spacing, Radius } from '../../constants/tokens';
 import { useWorkoutStore } from '../../store/workoutStore';
 import { formatTimerDisplay } from '../../utils';
+import { useWorkoutTimer } from '../../hooks/useWorkoutTimer';
 
 export function SessionHeader() {
   const session = useWorkoutStore((s) => s.session);
@@ -9,6 +10,7 @@ export function SessionHeader() {
   const resumeSession = useWorkoutStore((s) => s.resumeSession);
   const completedSets = useWorkoutStore((s) => s.completedSetsCount());
   const totalSets = useWorkoutStore((s) => s.totalSetsCount());
+  const elapsedSeconds = useWorkoutTimer(session);
 
   if (!session) return null;
 
@@ -20,13 +22,15 @@ export function SessionHeader() {
       <Text style={styles.label}>ACTIVE SESSION</Text>
 
       <View style={styles.timerRow}>
-        <Text style={styles.timer}>{formatTimerDisplay(session.elapsedSeconds)}</Text>
+        <Text style={styles.timer}>{formatTimerDisplay(elapsedSeconds)}</Text>
         <View style={styles.controls}>
           <TouchableOpacity
             style={styles.controlBtn}
-            onPress={session.isPaused ? resumeSession : pauseSession}
+            onPress={session.runningSince === null ? resumeSession : pauseSession}
           >
-            <Text style={styles.controlIcon}>{session.isPaused ? '▶' : '⏸'}</Text>
+            <Text style={styles.controlIcon}>
+              {session.runningSince === null ? '▶' : '⏸'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

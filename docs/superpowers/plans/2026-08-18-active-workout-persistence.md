@@ -63,7 +63,7 @@
 - Produces: `useWorkoutTimer(session: ActiveSession | null): number`
 - Replaces: `elapsedSeconds`, `isRunning`, `isPaused`, and `tickSecond`
 
-- [ ] **Step 1: Write failing deterministic timer tests**
+- [x] **Step 1: Write failing deterministic timer tests**
 
 Create `tests/activeSessionTimer.test.mjs` with:
 
@@ -108,13 +108,13 @@ test('backward clock movement never creates negative duration', () => {
 });
 ~~~
 
-- [ ] **Step 2: Run the timer test to verify RED**
+- [x] **Step 2: Run the timer test to verify RED**
 
 Run: `npx tsx --test tests/activeSessionTimer.test.mjs`
 
 Expected: FAIL because `src/store/activeSessionTimer.ts` does not exist.
 
-- [ ] **Step 3: Implement the timer model and pure transitions**
+- [x] **Step 3: Implement the timer model and pure transitions**
 
 Replace `ActiveSession` with:
 
@@ -179,7 +179,7 @@ Refactor `useWorkoutTimer` to accept the session, keep a transient `now`, update
 
 Call the hook from `SessionHeader`, infer paused state from `runningSince === null`, remove the hook call from `WorkoutScreen`, and calculate the temporary completion duration through `getElapsedSeconds(session, endTime)`.
 
-- [ ] **Step 4: Extend the routine-default test**
+- [x] **Step 4: Extend the routine-default test**
 
 Keep the exercise-default assertions and add:
 
@@ -188,7 +188,7 @@ assert.equal(typeof store.getState().session?.runningSince, 'number');
 assert.equal(store.getState().session?.accumulatedMilliseconds, 0);
 ~~~
 
-- [ ] **Step 5: Verify GREEN and commit**
+- [x] **Step 5: Verify GREEN and commit**
 
 Run:
 

@@ -6,6 +6,10 @@ import type {
   WorkoutExercise,
 } from '../types';
 import { generateId } from '../utils';
+import {
+  pauseActiveSession,
+  resumeActiveSession,
+} from './activeSessionTimer';
 
 interface WorkoutStore {
   session: ActiveSession | null;
@@ -19,7 +23,6 @@ interface WorkoutStore {
   pauseSession: () => void;
   resumeSession: () => void;
   cancelSession: () => void;
-  tickSecond: () => void;
 
   // Exercise management
   addExercise: (exercise: Omit<WorkoutExercise, 'id' | 'sets'>) => void;
@@ -40,20 +43,21 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   session: null,
 
   startSession: (name) => {
+    const now = Date.now();
     set({
       session: {
         sessionId: generateId(),
         workoutName: name,
-        startTime: Date.now(),
-        elapsedSeconds: 0,
+        startTime: now,
+        accumulatedMilliseconds: 0,
+        runningSince: now,
         exercises: [],
-        isRunning: true,
-        isPaused: false,
       },
     });
   },
 
   startSessionFromRoutine: (name, routineExercises) => {
+    const now = Date.now();
     const exercises: WorkoutExercise[] = routineExercises.map((exercise) => ({
       id: generateId(),
       exerciseId: exercise.exerciseId,
@@ -69,37 +73,29 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       session: {
         sessionId: generateId(),
         workoutName: name,
-        startTime: Date.now(),
-        elapsedSeconds: 0,
+        startTime: now,
+        accumulatedMilliseconds: 0,
+        runningSince: now,
         exercises,
-        isRunning: true,
-        isPaused: false,
       },
     });
   },
 
   pauseSession: () =>
     set((state) => ({
-      session: state.session ? { ...state.session, isPaused: true, isRunning: false } : null,
+      session: state.session
+        ? pauseActiveSession(state.session, Date.now())
+        : null,
     })),
 
   resumeSession: () =>
     set((state) => ({
-      session: state.session ? { ...state.session, isPaused: false, isRunning: true } : null,
+      session: state.session
+        ? resumeActiveSession(state.session, Date.now())
+        : null,
     })),
 
   cancelSession: () => set({ session: null }),
-
-  tickSecond: () =>
-    set((state) => {
-      if (!state.session || !state.session.isRunning) return state;
-      return {
-        session: {
-          ...state.session,
-          elapsedSeconds: state.session.elapsedSeconds + 1,
-        },
-      };
-    }),
 
   addExercise: (exercise) =>
     set((state) => {

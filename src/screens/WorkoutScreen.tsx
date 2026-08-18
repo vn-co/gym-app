@@ -12,7 +12,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, FontSize, FontWeight, Spacing, Radius } from '../constants/tokens';
 import { useWorkoutStore } from '../store/workoutStore';
-import { useWorkoutTimer } from '../hooks/useWorkoutTimer';
 import { SessionHeader } from '../components/workout/SessionHeader';
 import { ExerciseCard } from '../components/workout/ExerciseCard';
 import { ExercisePicker } from '../components/workout/ExercisePicker';
@@ -23,11 +22,10 @@ import {
 } from '../services/storage';
 import { mergeExerciseLibrary } from '../constants/exercises';
 import { calcVolume } from '../utils';
+import { getElapsedSeconds } from '../store/activeSessionTimer';
 import type { Exercise, WorkoutSession } from '../types';
 
 export function WorkoutScreen() {
-  useWorkoutTimer();
-
   const session = useWorkoutStore((s) => s.session);
   const startSession = useWorkoutStore((s) => s.startSession);
   const cancelSession = useWorkoutStore((s) => s.cancelSession);
@@ -103,7 +101,7 @@ export function WorkoutScreen() {
             name: session.workoutName,
             startTime: session.startTime,
             endTime,
-            durationSeconds: session.elapsedSeconds,
+            durationSeconds: getElapsedSeconds(session, endTime),
             exercises: session.exercises,
             totalVolume,
             totalSets,

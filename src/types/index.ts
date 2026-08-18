@@ -55,10 +55,9 @@ export interface ActiveSession {
   sessionId: string;
   workoutName: string;
   startTime: number;
-  elapsedSeconds: number;
+  accumulatedMilliseconds: number;
+  runningSince: number | null;
   exercises: WorkoutExercise[];
-  isRunning: boolean;
-  isPaused: boolean;
 }
 
 // ─── Personal Records ────────────────────────────────────────────────────────

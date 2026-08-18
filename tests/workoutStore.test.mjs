@@ -16,6 +16,14 @@ test('starts a routine with each exercise defaults', () => {
   ]);
 
   const exercise = useWorkoutStore.getState().session?.exercises[0];
+  assert.equal(
+    typeof useWorkoutStore.getState().session?.runningSince,
+    'number',
+  );
+  assert.equal(
+    useWorkoutStore.getState().session?.accumulatedMilliseconds,
+    0,
+  );
   assert.equal(exercise?.sets.length, 2);
   assert.deepEqual(
     exercise?.sets.map(({ weight, reps, completed }) => ({
