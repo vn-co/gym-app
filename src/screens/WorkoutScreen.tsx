@@ -8,6 +8,7 @@ import {
   Alert,
   TextInput,
   Modal,
+  LayoutAnimation,
 } from 'react-native';
 import {
   SafeAreaView,
@@ -17,6 +18,7 @@ import {
   Colors,
   FontSize,
   FontWeight,
+  MotionDuration,
   Radius,
   Spacing,
   TabBarMetrics,
@@ -34,9 +36,11 @@ import {
 import { mergeExerciseLibrary } from '../constants/exercises';
 import { finishActiveWorkout } from '../services/finishActiveWorkout';
 import type { Exercise } from '../types';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 export function WorkoutScreen() {
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
   const session = useWorkoutStore((s) => s.session);
   const startSession = useWorkoutStore((s) => s.startSession);
   const cancelSession = useWorkoutStore((s) => s.cancelSession);
@@ -53,6 +57,23 @@ export function WorkoutScreen() {
   const actionBottom = tabBottom + TabBarMetrics.height + Spacing.sm;
   const scrollBottomInset = actionBottom + 68;
 
+  const animateWorkoutLayout = () => {
+    if (reduceMotion) return;
+
+    LayoutAnimation.configureNext({
+      duration: MotionDuration.standard,
+      create: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+      update: { type: LayoutAnimation.Types.easeInEaseOut },
+      delete: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+    });
+  };
+
   const handleStartWorkout = () => {
     setWorkoutName('My Workout');
     setNameModalVisible(true);
@@ -64,6 +85,7 @@ export function WorkoutScreen() {
   };
 
   const handleAddExercise = (exercise: Exercise) => {
+    animateWorkoutLayout();
     addExercise({
       exerciseId: exercise.id,
       exerciseName: exercise.name,
@@ -193,7 +215,14 @@ export function WorkoutScreen() {
             onRemove={() => {
               Alert.alert('Remove exercise?', ex.exerciseName, [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Remove', style: 'destructive', onPress: () => removeExercise(ex.id) },
+                {
+                  text: 'Remove',
+                  style: 'destructive',
+                  onPress: () => {
+                    animateWorkoutLayout();
+                    removeExercise(ex.id);
+                  },
+                },
               ]);
             }}
           />

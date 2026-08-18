@@ -1,14 +1,23 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import {
+  LayoutAnimation,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {
   Colors,
   FontSize,
   FontWeight,
+  MotionDuration,
   Spacing,
   Radius,
 } from '../../constants/tokens';
 import { SetRow } from './SetRow';
 import { useWorkoutStore } from '../../store/workoutStore';
 import type { WorkoutExercise } from '../../types';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { AppIcon } from '../icons/AppIcon';
 
 interface Props {
   exercise: WorkoutExercise;
@@ -19,37 +28,48 @@ export function ExerciseCard({ exercise, onRemove }: Props) {
   const addSet = useWorkoutStore((s) => s.addSet);
   const updateSet = useWorkoutStore((s) => s.updateSet);
   const toggleSetComplete = useWorkoutStore((s) => s.toggleSetComplete);
+  const reduceMotion = useReducedMotion();
 
-  const allDone =
-    exercise.sets.length > 0 && exercise.sets.every((s) => s.completed);
-  const anyDone = exercise.sets.some((s) => s.completed);
+  const completedSets = exercise.sets.filter((set) => set.completed).length;
+
+  const handleAddSet = () => {
+    if (!reduceMotion) {
+      LayoutAnimation.configureNext({
+        duration: MotionDuration.standard,
+        create: {
+          type: LayoutAnimation.Types.easeInEaseOut,
+          property: LayoutAnimation.Properties.opacity,
+        },
+        update: { type: LayoutAnimation.Types.easeInEaseOut },
+      });
+    }
+    addSet(exercise.id);
+  };
 
   return (
     <View style={styles.card}>
-      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View
-            style={[
-              styles.dot,
-              allDone
-                ? styles.dotDone
-                : anyDone
-                  ? styles.dotPartial
-                  : styles.dotDefault,
-            ]}
-          />
-          <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
+        <View style={styles.titleBlock}>
+          <Text style={styles.exerciseName} numberOfLines={1}>
+            {exercise.exerciseName}
+          </Text>
+          <Text style={styles.exerciseMeta}>
+            {completedSets} of {exercise.sets.length} sets complete
+          </Text>
         </View>
-        <TouchableOpacity
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Options for ${exercise.exerciseName}`}
+          style={({ pressed }) => [
+            styles.menuButton,
+            pressed && styles.buttonPressed,
+          ]}
           onPress={onRemove}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={styles.menuDots}>···</Text>
-        </TouchableOpacity>
+          <AppIcon name="more" size={22} color={Colors.textSecondary} />
+        </Pressable>
       </View>
 
-      {/* Column headers */}
       <View style={styles.colHeaders}>
         <Text style={[styles.colLabel, { width: 32, textAlign: 'center' }]}>
           SET
@@ -63,7 +83,6 @@ export function ExerciseCard({ exercise, onRemove }: Props) {
         <View style={{ width: 44 }} />
       </View>
 
-      {/* Sets */}
       {exercise.sets.map((set, idx) => (
         <SetRow
           key={set.id}
@@ -74,13 +93,15 @@ export function ExerciseCard({ exercise, onRemove }: Props) {
         />
       ))}
 
-      {/* Add set */}
-      <TouchableOpacity
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Add set to ${exercise.exerciseName}`}
         style={styles.addSet}
-        onPress={() => addSet(exercise.id)}
+        onPress={handleAddSet}
       >
-        <Text style={styles.addSetText}>+ Add Set</Text>
-      </TouchableOpacity>
+        <AppIcon name="add" size={18} color={Colors.accent} />
+        <Text style={styles.addSetText}>Add set</Text>
+      </Pressable>
     </View>
   );
 }
@@ -88,9 +109,11 @@ export function ExerciseCard({ exercise, onRemove }: Props) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.xl,
     padding: Spacing.lg,
     marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -98,37 +121,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: Spacing.md,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
+  titleBlock: {
     flex: 1,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: Radius.full,
-  },
-  dotDefault: {
-    backgroundColor: Colors.dot,
-  },
-  dotPartial: {
-    backgroundColor: Colors.accentDim,
-  },
-  dotDone: {
-    backgroundColor: Colors.accent,
+    paddingRight: Spacing.sm,
   },
   exerciseName: {
     fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
     color: Colors.textPrimary,
-    flex: 1,
+    marginBottom: 3,
   },
-  menuDots: {
-    color: Colors.textMuted,
-    fontSize: FontSize.xl,
-    letterSpacing: 2,
-    fontWeight: FontWeight.bold,
+  exerciseMeta: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+  },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonPressed: {
+    backgroundColor: Colors.bgCardAlt,
   },
   colHeaders: {
     flexDirection: 'row',
@@ -143,11 +158,15 @@ const styles = StyleSheet.create({
   },
   addSet: {
     marginTop: Spacing.sm,
-    paddingVertical: Spacing.xs,
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
   },
   addSetText: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
-    fontWeight: FontWeight.medium,
+    color: Colors.accent,
+    fontWeight: FontWeight.semibold,
   },
 });
