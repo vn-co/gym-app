@@ -56,7 +56,7 @@ export function ProgressScreen() {
   }, [load]);
 
   const { points, stats } = buildProgressData(sessions, range);
-  const hasData = sessions.length > 0;
+  const hasData = points.some((point) => point.volume > 0);
 
   // Sort PRs by most recent
   const sortedPrs = [...prs].sort((a, b) => b.setAt - a.setAt);

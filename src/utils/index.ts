@@ -17,6 +17,16 @@ export function calcVolume(
     .reduce((acc, s) => acc + s.weight * s.reps, 0);
 }
 
+export function parseNumericInput(text: string, integer = false): number {
+  const normalized = text.trim().replace(',', '.');
+  if (!normalized) return 0;
+
+  const value = Number(normalized);
+  if (!Number.isFinite(value) || value < 0) return 0;
+
+  return integer ? Math.trunc(value) : value;
+}
+
 export function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -99,40 +109,36 @@ export function buildProgressData(
   sessions: WorkoutSession[],
   range: ProgressRange,
 ): { points: ProgressDataPoint[]; stats: ProgressStats } {
-  const now = Date.now();
-  let days: Date[];
-
-  if (range === '7d') {
-    days = getLast7Days();
-  } else if (range === '1m') {
-    days = Array.from({ length: 30 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (29 - i));
-      return d;
-    });
-  } else {
-    // 1 year — weekly buckets
-    days = Array.from({ length: 52 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (51 - i) * 7);
-      return d;
-    });
-  }
-
   const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const count = range === '7d' ? 7 : range === '1m' ? 30 : 52;
+  const daysPerBucket = range === '1y' ? 7 : 1;
+  const rangeEnd = new Date();
+  rangeEnd.setDate(rangeEnd.getDate() + 1);
+  rangeEnd.setHours(0, 0, 0, 0);
 
-  const points: ProgressDataPoint[] = days.map((day) => {
-    const dayStart = startOfDay(day);
-    const dayEnd = dayStart + 86400000;
+  const points: ProgressDataPoint[] = Array.from({ length: count }, (_, i) => {
+    const bucketEnd = new Date(rangeEnd);
+    bucketEnd.setDate(
+      bucketEnd.getDate() - (count - 1 - i) * daysPerBucket,
+    );
+    const bucketStart = new Date(bucketEnd);
+    bucketStart.setDate(bucketStart.getDate() - daysPerBucket);
+
+    const startTimestamp = bucketStart.getTime();
+    const endTimestamp = bucketEnd.getTime();
     const volume = sessions
-      .filter((s) => s.startTime >= dayStart && s.startTime < dayEnd)
+      .filter(
+        (session) =>
+          session.startTime >= startTimestamp &&
+          session.startTime < endTimestamp,
+      )
       .reduce((acc, s) => acc + s.totalVolume, 0);
     return {
       date:
         range === '7d'
-          ? DAY_LABELS[day.getDay()]
-          : `${day.getMonth() + 1}/${day.getDate()}`,
-      timestamp: dayStart,
+          ? DAY_LABELS[bucketStart.getDay()]
+          : `${bucketStart.getMonth() + 1}/${bucketStart.getDate()}`,
+      timestamp: startTimestamp,
       volume,
     };
   });
@@ -145,9 +151,13 @@ export function buildProgressData(
     : 0;
 
   // percent change vs first half vs second half
-  const half = Math.floor(points.length / 2);
-  const firstHalf = points.slice(0, half).reduce((a, b) => a + b.volume, 0);
-  const secondHalf = points.slice(half).reduce((a, b) => a + b.volume, 0);
+  const comparisonSize = Math.floor(points.length / 2);
+  const firstHalf = points
+    .slice(0, comparisonSize)
+    .reduce((a, b) => a + b.volume, 0);
+  const secondHalf = points
+    .slice(-comparisonSize)
+    .reduce((a, b) => a + b.volume, 0);
   const percentChange =
     firstHalf > 0
       ? Math.round(((secondHalf - firstHalf) / firstHalf) * 100)
@@ -164,8 +174,12 @@ export function getWeeklyConsistency(sessions: WorkoutSession[]): boolean[] {
   monday.setHours(0, 0, 0, 0);
 
   return Array.from({ length: 7 }, (_, i) => {
-    const dayStart = monday.getTime() + i * 86400000;
-    const dayEnd = dayStart + 86400000;
+    const dayStartDate = new Date(monday);
+    dayStartDate.setDate(dayStartDate.getDate() + i);
+    const dayEndDate = new Date(dayStartDate);
+    dayEndDate.setDate(dayEndDate.getDate() + 1);
+    const dayStart = dayStartDate.getTime();
+    const dayEnd = dayEndDate.getTime();
     return sessions.some(
       (s) => s.startTime >= dayStart && s.startTime < dayEnd,
     );

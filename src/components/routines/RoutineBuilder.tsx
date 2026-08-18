@@ -24,7 +24,7 @@ import {
   EXERCISE_LIBRARY,
   MUSCLE_GROUP_LABELS,
 } from '../../constants/exercises';
-import { generateId } from '../../utils';
+import { generateId, parseNumericInput } from '../../utils';
 import type {
   Routine,
   RoutineExercise,
@@ -395,11 +395,11 @@ export function RoutineBuilder({
                       value={
                         ex.defaultWeight === 0 ? '' : String(ex.defaultWeight)
                       }
-                      onChangeText={(t) =>
+                      onChangeText={(text) =>
                         updateExercise(
                           ex.exerciseId,
                           'defaultWeight',
-                          parseFloat(t) || 0,
+                          parseNumericInput(text),
                         )
                       }
                       keyboardType="decimal-pad"

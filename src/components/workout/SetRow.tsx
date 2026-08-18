@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, FontSize, FontWeight, Spacing, Radius } from '../../constants/tokens';
 import type { SetEntry } from '../../types';
+import { parseNumericInput } from '../../utils';
 
 interface Props {
   set: SetEntry;
@@ -22,7 +23,9 @@ export function SetRow({ set, index, onUpdate, onToggleComplete }: Props) {
       <TextInput
         style={styles.input}
         value={set.weight === 0 ? '' : String(set.weight)}
-        onChangeText={(t) => onUpdate({ weight: parseFloat(t) || 0 })}
+        onChangeText={(text) =>
+          onUpdate({ weight: parseNumericInput(text) })
+        }
         keyboardType="decimal-pad"
         placeholder="0"
         placeholderTextColor={Colors.textMuted}
@@ -34,7 +37,9 @@ export function SetRow({ set, index, onUpdate, onToggleComplete }: Props) {
       <TextInput
         style={styles.input}
         value={set.reps === 0 ? '' : String(set.reps)}
-        onChangeText={(t) => onUpdate({ reps: parseInt(t, 10) || 0 })}
+        onChangeText={(text) =>
+          onUpdate({ reps: parseNumericInput(text, true) })
+        }
         keyboardType="number-pad"
         placeholder="0"
         placeholderTextColor={Colors.textMuted}
