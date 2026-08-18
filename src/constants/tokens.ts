@@ -1,34 +1,45 @@
 export const Colors = {
   // Backgrounds
-  bg: '#0a0a0a',
-  bgCard: '#161616',
-  bgCardAlt: '#1c1c1c',
-  bgInput: '#222222',
+  bg: '#0B0D0C',
+  bgCard: '#171A18',
+  bgCardAlt: '#1E221F',
+  bgInput: '#232724',
 
   // Accent
-  accent: '#c8f03a',       // lime green — primary CTA, active states
-  accentDim: '#8aaa20',    // dimmed accent for secondary
-  accentBg: '#1e2a00',     // accent tinted background
+  accent: '#C2E653',
+  accentDim: '#AACB43',
+  accentBg: '#C2E65314',
 
   // Danger
-  danger: '#e05252',
-  dangerBg: '#2a0a0a',
+  danger: '#FF6B6B',
+  dangerBg: '#FF6B6B14',
 
   // Text
-  textPrimary: '#ffffff',
-  textSecondary: '#888888',
-  textMuted: '#555555',
-  textAccent: '#c8f03a',
+  textPrimary: '#F3F5EF',
+  textSecondary: '#A1A69E',
+  textMuted: '#71776F',
+  textAccent: '#C2E653',
 
   // UI
-  border: '#2a2a2a',
-  borderAccent: '#c8f03a',
-  dot: '#c8f03a',
-  dotInactive: '#333333',
+  border: '#292E2A',
+  borderAccent: '#C2E653',
+  dot: '#C2E653',
+  dotInactive: '#292E2A',
 
   // Chart
-  chartLine: '#c8f03a',
-  chartGrid: '#222222',
+  chartLine: '#C2E653',
+  chartGrid: '#292E2A',
+} as const;
+
+export const MotionDuration = {
+  fast: 160,
+  standard: 220,
+} as const;
+
+export const TabBarMetrics = {
+  height: 68,
+  horizontalInset: 12,
+  bottomGap: 8,
 } as const;
 
 export const Spacing = {
