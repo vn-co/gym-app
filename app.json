@@ -4,14 +4,9 @@
     "slug": "gym-v1",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo.png",
     "scheme": "gymv1",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0a0a0a"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.vlad.gymv1"
@@ -21,7 +16,15 @@
     ],
     "plugins": [
       "expo-router",
-      "expo-asset"
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "imageWidth": 320,
+          "resizeMode": "contain",
+          "backgroundColor": "#0a0a0a"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
