@@ -1,101 +1,91 @@
+import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
-import { Text, View, StyleSheet } from 'react-native';
-import { Colors, FontSize } from '../../src/constants/tokens';
+import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AnimatedTabIcon } from '../../src/components/navigation/AnimatedTabIcon';
+import { TAB_ITEMS } from '../../src/constants/navigation';
+import {
+  Colors,
+  FontSize,
+  FontWeight,
+  TabBarMetrics,
+} from '../../src/constants/tokens';
 import { useWorkoutStore } from '../../src/store/workoutStore';
 
-function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focused: boolean }) {
-  const activeSession = useWorkoutStore((s) => s.session);
-  const showDot = label === 'Workout' && !!activeSession;
-
-  return (
-    <View style={styles.iconWrapper}>
-      <View>
-        <Text style={[styles.emoji, focused && styles.emojiActive]}>{emoji}</Text>
-        {showDot && <View style={styles.activeDot} />}
-      </View>
-      <Text style={[styles.label, focused && styles.labelActive]}>{label}</Text>
-    </View>
-  );
-}
-
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const activeSession = useWorkoutStore((state) => state.session);
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarActiveTintColor: Colors.accent,
+        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarShowLabel: true,
+        tabBarHideOnKeyboard: true,
+        tabBarAccessibilityLabel: 'Main navigation',
+        tabBarBackground: () => (
+          <View style={StyleSheet.absoluteFill}>
+            <BlurView intensity={58} tint="dark" style={StyleSheet.absoluteFill} />
+            <View style={[StyleSheet.absoluteFill, styles.blurTint]} />
+          </View>
+        ),
         tabBarStyle: {
-          backgroundColor: Colors.bgCard,
-          borderTopColor: Colors.border,
+          position: 'absolute',
+          left: TabBarMetrics.horizontalInset,
+          right: TabBarMetrics.horizontalInset,
+          bottom: Math.max(insets.bottom, TabBarMetrics.bottomGap),
+          height: TabBarMetrics.height,
+          paddingTop: 5,
+          paddingBottom: 4,
+          borderRadius: 24,
           borderTopWidth: 1,
-          height: 80,
-          paddingBottom: 16,
-          paddingTop: 8,
+          borderWidth: 1,
+          borderColor: Colors.border,
+          backgroundColor: 'transparent',
+          overflow: 'hidden',
         },
-        tabBarShowLabel: false,
+        tabBarItemStyle: styles.tabItem,
+        tabBarIconStyle: styles.tabIcon,
+        tabBarLabelStyle: styles.tabLabel,
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" label="Home" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="workout"
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon emoji="💪" label="Workout" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="routines"
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📋" label="Routines" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="progress"
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📈" label="Progress" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="library"
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🗂️" label="Library" focused={focused} />,
-        }}
-      />
+      {TAB_ITEMS.map((item) => (
+        <Tabs.Screen
+          key={item.route}
+          name={item.route}
+          options={{
+            title: item.label,
+            tabBarAccessibilityLabel: item.label,
+            tabBarIcon: ({ focused }) => (
+              <AnimatedTabIcon
+                icon={item.icon}
+                focused={focused}
+                showBadge={item.route === 'workout' && Boolean(activeSession)}
+              />
+            ),
+          }}
+        />
+      ))}
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
-  iconWrapper: {
-    alignItems: 'center',
-    gap: 4,
+  blurTint: {
+    backgroundColor: '#171A18CC',
   },
-  emoji: {
-    fontSize: 22,
-    opacity: 0.45,
+  tabItem: {
+    minHeight: 44,
+    paddingVertical: 2,
   },
-  emojiActive: {
-    opacity: 1,
+  tabIcon: {
+    marginTop: 1,
   },
-  label: {
+  tabLabel: {
     fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    fontWeight: '500',
-  },
-  labelActive: {
-    color: Colors.accent,
-    fontWeight: '700',
-  },
-  activeDot: {
-    position: 'absolute',
-    top: -2,
-    right: -4,
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: Colors.accent,
+    fontWeight: FontWeight.semibold,
+    marginTop: -2,
   },
 });
