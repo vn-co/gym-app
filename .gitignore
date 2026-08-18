@@ -16,8 +16,8 @@ dist/
 web-build/
 
 # Native builds
-ios/
-android/
+/ios/
+/android/
 
 # Environment variables
 .env
