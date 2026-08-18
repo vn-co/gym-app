@@ -28,6 +28,7 @@ import { SessionHeader } from '../components/workout/SessionHeader';
 import { ExerciseCard } from '../components/workout/ExerciseCard';
 import { ExercisePicker } from '../components/workout/ExercisePicker';
 import { WorkoutActionBar } from '../components/workout/WorkoutActionBar';
+import { EmptyWorkoutState } from '../components/workout/EmptyWorkoutState';
 import {
   getCustomExercises,
   saveSession,
@@ -151,21 +152,23 @@ export function WorkoutScreen() {
   if (!session) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        <View style={styles.noSession}>
-          <Text style={styles.noSessionEmoji}>🏋️</Text>
-          <Text style={styles.noSessionTitle}>Ready to train?</Text>
-          <Text style={styles.noSessionSub}>Start a workout to begin logging sets</Text>
+        <EmptyWorkoutState onStart={handleStartWorkout} />
 
-          <TouchableOpacity style={styles.startBtn} onPress={handleStartWorkout}>
-            <Text style={styles.startBtnText}>Start Workout</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Workout name modal */}
-        <Modal visible={nameModalVisible} transparent animationType="fade">
-          <View style={styles.modalOverlay}>
+        <Modal
+          visible={nameModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setNameModalVisible(false)}
+        >
+          <View
+            style={[
+              styles.modalOverlay,
+              { paddingBottom: Math.max(insets.bottom, Spacing.lg) },
+            ]}
+          >
             <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>Workout Name</Text>
+              <View style={styles.dragIndicator} />
+              <Text style={styles.modalTitle}>Name your workout</Text>
               <TextInput
                 style={styles.modalInput}
                 value={workoutName}
@@ -255,37 +258,6 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { padding: Spacing.lg },
 
-  noSession: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.xxxl,
-  },
-  noSessionEmoji: { fontSize: 64, marginBottom: Spacing.xl },
-  noSessionTitle: {
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
-  },
-  noSessionSub: {
-    fontSize: FontSize.md,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    marginBottom: Spacing.xxxl,
-  },
-  startBtn: {
-    backgroundColor: Colors.accent,
-    borderRadius: Radius.lg,
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xxxl,
-  },
-  startBtnText: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: '#000',
-  },
-
   cancelBtn: {
     paddingVertical: Spacing.md,
     alignItems: 'center',
@@ -298,31 +270,42 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.xl,
+    justifyContent: 'flex-end',
+    paddingHorizontal: Spacing.md,
   },
   modalCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.xl,
+    backgroundColor: Colors.bgCardAlt,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
     padding: Spacing.xl,
     width: '100%',
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  dragIndicator: {
+    alignSelf: 'center',
+    width: 38,
+    height: 4,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.border,
+    marginBottom: Spacing.lg,
+  },
   modalTitle: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
     color: Colors.textPrimary,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   modalInput: {
     backgroundColor: Colors.bgInput,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
+    paddingVertical: 0,
     fontSize: FontSize.md,
     color: Colors.textPrimary,
+    height: 48,
     marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -332,8 +315,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.bgCardAlt,
     borderRadius: Radius.md,
-    paddingVertical: Spacing.md,
+    height: 48,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
   },
@@ -342,8 +326,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.accent,
     borderRadius: Radius.md,
-    paddingVertical: Spacing.md,
+    height: 48,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   modalConfirmText: { color: '#000', fontWeight: FontWeight.bold, fontSize: FontSize.md },
 });
