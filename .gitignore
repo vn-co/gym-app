@@ -34,3 +34,6 @@ android/
 
 # Expo CLI generated
 expo-env.d.ts
+
+# Local visual-design companion artifacts
+.superpowers/
