@@ -1,10 +1,39 @@
 import type { NativeModule } from 'expo';
 
 export type NativeHealthRecord = Record<string, unknown>;
+export type NativeHealthValue = number | null;
+export type NativeWorkoutState =
+  | 'idle'
+  | 'starting'
+  | 'running'
+  | 'paused'
+  | 'ending'
+  | 'ended'
+  | 'failed';
+
+export type NativeWorkoutStatePayload = {
+  state: NativeWorkoutState;
+  errorCode?: string;
+};
+
+export type NativeLiveMetricsPayload = {
+  elapsedSeconds: number;
+  activeEnergyKilocalories: NativeHealthValue;
+  heartRateBpm: NativeHealthValue;
+  averageHeartRateBpm: NativeHealthValue;
+  maximumHeartRateBpm: NativeHealthValue;
+  capturedAt: number;
+};
+
+export type NativeFinishedHealthWorkoutPayload = NativeLiveMetricsPayload & {
+  workoutUuid: string;
+  startTime: number;
+  endTime: number;
+};
 
 export type HealthKitWorkoutModuleEvents = {
-  onWorkoutStateChanged: (payload: NativeHealthRecord) => void;
-  onLiveMetrics: (payload: NativeHealthRecord) => void;
+  onWorkoutStateChanged: (payload: NativeWorkoutStatePayload) => void;
+  onLiveMetrics: (payload: NativeLiveMetricsPayload) => void;
 };
 
 export interface NativeHealthKitWorkoutModule
@@ -15,7 +44,7 @@ export interface NativeHealthKitWorkoutModule
   startWorkout(localSessionId: string, startedAt: number): Promise<void>;
   pauseWorkout(): Promise<void>;
   resumeWorkout(): Promise<void>;
-  finishWorkout(): Promise<NativeHealthRecord>;
+  finishWorkout(): Promise<NativeFinishedHealthWorkoutPayload>;
   discardWorkout(): Promise<void>;
-  getWorkoutState(): Promise<NativeHealthRecord>;
+  getWorkoutState(): Promise<NativeWorkoutStatePayload>;
 }
