@@ -13,6 +13,7 @@ import {
   Spacing,
 } from '../../constants/tokens';
 import { healthService } from '../../health/healthService';
+import { getHealthProofControls } from '../../health/healthProofControls';
 import type {
   LiveHealthMetrics,
   TodayActivity,
@@ -66,6 +67,7 @@ export function HealthKitProofPanel() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const retryRef = useRef<(() => Promise<void>) | null>(null);
+  const workoutIdRef = useRef<string | null>(null);
 
   const run = useCallback(async (operation: () => Promise<void>) => {
     setBusy(true);
@@ -104,10 +106,8 @@ export function HealthKitProofPanel() {
   if (!__DEV__) return null;
 
   const state = workoutState.state;
-  const canStart = state === 'idle' || state === 'ended' || state === 'failed';
-  const canPauseOrResume = state === 'running' || state === 'paused';
-  const canFinish = state === 'running' || state === 'paused';
-  const canDiscard = state !== 'idle' && state !== 'ending';
+  const { canStart, canPause, canResume, canFinish, canDiscard } =
+    getHealthProofControls(state);
 
   const checkAvailability = () =>
     run(async () => {
@@ -120,27 +120,28 @@ export function HealthKitProofPanel() {
     });
   const start = () =>
     run(async () => {
-      setMetrics(null);
-      setFinishedUuid(null);
-      await healthService.startWorkout(`health-proof-${Date.now()}`, Date.now());
+      if (state !== 'running' || !workoutIdRef.current) {
+        workoutIdRef.current = `health-proof-${Date.now()}`;
+        setMetrics(null);
+        setFinishedUuid(null);
+      }
+      await healthService.startWorkout(workoutIdRef.current, Date.now());
     });
-  const pauseOrResume = () =>
-    run(() =>
-      state === 'paused'
-        ? healthService.resumeWorkout()
-        : healthService.pauseWorkout(),
-    );
+  const pause = () => run(() => healthService.pauseWorkout());
+  const resume = () => run(() => healthService.resumeWorkout());
   const finish = () =>
     run(async () => {
       const workout = await healthService.finishWorkout();
       setMetrics(workout);
       setFinishedUuid(workout.workoutUuid);
+      workoutIdRef.current = null;
     });
   const discard = () =>
     run(async () => {
       await healthService.discardWorkout();
       setMetrics(null);
       setFinishedUuid(null);
+      workoutIdRef.current = null;
     });
 
   return (
@@ -251,14 +252,19 @@ export function HealthKitProofPanel() {
         />
         <ProofButton label="Read today" disabled={busy} onPress={readActivity} />
         <ProofButton
-          label="Start test workout"
+          label={state === 'running' ? 'Repeat start' : 'Start test workout'}
           disabled={busy || !canStart}
           onPress={start}
         />
         <ProofButton
-          label={state === 'paused' ? 'Resume workout' : 'Pause workout'}
-          disabled={busy || !canPauseOrResume}
-          onPress={pauseOrResume}
+          label="Pause workout"
+          disabled={busy || !canPause}
+          onPress={pause}
+        />
+        <ProofButton
+          label="Resume workout"
+          disabled={busy || !canResume}
+          onPress={resume}
         />
         <ProofButton
           label="Finish workout"

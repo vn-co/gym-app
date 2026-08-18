@@ -46,6 +46,103 @@ On a Mac with Xcode:
 npm run ios
 ```
 
+## HealthKit Xcode Simulator checkpoint
+
+HealthKit uses the local Swift module, so this checkpoint requires macOS, Xcode, and an iOS 26 Simulator. Expo Go cannot load this module. The Simulator checkpoint proves that Swift compiles, permissions and activity queries are callable, and the workout state machine completes without hardware data. It does not validate sensor accuracy.
+
+### Build a clean development app
+
+From the repository on the Mac:
+
+```bash
+git status --short
+git pull --ff-only origin main
+npm ci
+npx expo prebuild --clean --platform ios
+npx expo run:ios
+```
+
+`git status --short` must show no unexpected work before the clean prebuild. If Expo selects an older runtime, rerun `npx expo run:ios --device` and choose an iOS 26 Simulator. The generated `ios/` directory is disposable and ignored; native source remains in `modules/healthkit-workout`.
+
+A successful checkpoint requires the app to launch without a Swift compiler error or native crash. The development-only **HealthKit / Device Proof** panel appears near the top of Home.
+
+### Reset Health permissions and sample data
+
+On the simulated iPhone, review app-specific access at:
+
+**Settings → Privacy & Security → Health → Gym Tracker**
+
+To reproduce the first authorization prompt from a completely clean Simulator, use the macOS Simulator menu:
+
+**Device → Erase All Content and Settings…**
+
+This full reset deletes every app and all data in that Simulator. After it finishes, rerun `npx expo run:ios`. Use the Settings path for ordinary permission changes; use the full reset only when the first-run sheet itself must be tested again.
+
+To add sample activity where the selected Simulator runtime supports it:
+
+1. Open the simulated **Health** app.
+2. Go to **Browse → Activity → Steps → Add Data** and save a value for today.
+3. Repeat for **Active Energy** if **Add Data** is available.
+4. Return to Gym Tracker and press **Read today** again.
+
+Health values that have no sample must remain **Unavailable**, not silently become zero. Activity-summary goals can remain unavailable when the Simulator does not provide them.
+
+### Permission and activity proof
+
+Run this sequence in the proof panel:
+
+1. Press **Check availability** and confirm **Available**.
+2. Press **Connect Apple Health** and open the system permission sheet.
+3. Grant the requested workout and activity access.
+4. Press **Read today** before adding sample data; missing fields must say **Unavailable**.
+5. Add supported Health samples using the steps above.
+6. Press **Read today** again and confirm the matching values update.
+
+HealthKit intentionally does not reveal whether read access was denied. A denied read can therefore look the same as no data; the app must remain usable in either case.
+
+### Workout lifecycle proof
+
+Use the proof panel controls in this exact order:
+
+1. Press **Start test workout** and confirm the state reaches **RUNNING**.
+2. Press **Repeat start** and confirm the state stays **RUNNING**, with no second session or error.
+3. Press **Pause workout** and confirm **PAUSED**.
+4. Press **Pause workout** again and confirm it remains **PAUSED** without an error.
+5. Press **Resume workout** and confirm **RUNNING**.
+6. Press **Resume workout** again and confirm it remains **RUNNING** without an error.
+7. Press **Finish workout**, confirm **ENDED**, and confirm one saved workout UUID appears.
+8. Press **Start test workout** to create a fresh session, then **Discard workout** and confirm **IDLE**.
+9. Complete the sequence with heart rate showing **Unavailable** and confirm there is no crash.
+
+Do not pass this checkpoint if Start reports that live workouts require a newer iOS version, if any state becomes stuck, if duplicate commands return an error, or if Finish returns no UUID.
+
+### Record and verify the checkpoint
+
+Record these details with the test result:
+
+- Git commit SHA: `git rev-parse HEAD`
+- Xcode version: `xcodebuild -version`
+- Simulator model and iOS version
+- Permission/activity result
+- Start/pause/resume/finish/discard result
+- Returned workout UUID
+
+Then run the repository gate:
+
+```bash
+npm run check
+npx tsc --noEmit --noUnusedLocals --noUnusedParameters
+npx expo-doctor
+npx expo export --platform ios --output-dir .expo-export/healthkit-simulator --clear
+git diff --check
+```
+
+All commands must exit successfully. The current Expo workflow is documented in [local app development](https://docs.expo.dev/guides/local-app-development/) and the [Expo CLI reference](https://docs.expo.dev/more/expo-cli/).
+
+### Physical-device warning
+
+Simulator calories and heart rate are not hardware evidence. Do not use generated or manually entered values to approve the sensor integration. Real-time heart-rate and active-energy proof belongs to the signed physical-iPhone checkpoint, using a compatible connected sensor and `npx expo run:ios --device`.
+
 ## Project structure
 
 ```text
