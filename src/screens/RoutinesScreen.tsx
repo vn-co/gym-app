@@ -57,13 +57,7 @@ export function RoutinesScreen() {
 
     startSessionFromRoutine(
       routine.name,
-      routine.exercises.map((e) => ({
-        exerciseId: e.exerciseId,
-        exerciseName: e.exerciseName,
-      })),
-      routine.exercises.map((e) => e.defaultSets),
-      routine.exercises.map((e) => e.defaultReps),
-      routine.exercises.map((e) => e.defaultWeight),
+      routine.exercises,
     );
 
     router.push('/(tabs)/workout');

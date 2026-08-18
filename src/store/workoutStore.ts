@@ -1,5 +1,10 @@
 import { create } from 'zustand';
-import type { ActiveSession, WorkoutExercise, SetEntry } from '../types';
+import type {
+  ActiveSession,
+  RoutineExercise,
+  SetEntry,
+  WorkoutExercise,
+} from '../types';
 import { generateId } from '../utils';
 
 interface WorkoutStore {
@@ -7,7 +12,10 @@ interface WorkoutStore {
 
   // Session lifecycle
   startSession: (name: string) => void;
-  startSessionFromRoutine: (name: string, exercises: Omit<WorkoutExercise, 'id' | 'sets'>[], defaultSets: number, defaultReps: number, defaultWeight: number[]) => void;
+  startSessionFromRoutine: (
+    name: string,
+    exercises: RoutineExercise[],
+  ) => void;
   pauseSession: () => void;
   resumeSession: () => void;
   cancelSession: () => void;
@@ -45,15 +53,15 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     });
   },
 
-  startSessionFromRoutine: (name, exerciseDefs, defaultSetsArr, defaultRepsArr, defaultWeightsArr) => {
-    const exercises: WorkoutExercise[] = exerciseDefs.map((def, i) => ({
+  startSessionFromRoutine: (name, routineExercises) => {
+    const exercises: WorkoutExercise[] = routineExercises.map((exercise) => ({
       id: generateId(),
-      exerciseId: def.exerciseId,
-      exerciseName: def.exerciseName,
-      sets: Array.from({ length: defaultSetsArr[i] ?? 3 }, () => ({
+      exerciseId: exercise.exerciseId,
+      exerciseName: exercise.exerciseName,
+      sets: Array.from({ length: exercise.defaultSets }, () => ({
         id: generateId(),
-        weight: defaultWeightsArr[i] ?? 0,
-        reps: defaultRepsArr[i] ?? 10,
+        weight: exercise.defaultWeight,
+        reps: exercise.defaultReps,
         completed: false,
       })),
     }));
