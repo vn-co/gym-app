@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Modal,
   View,
@@ -10,30 +10,36 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Colors, FontSize, FontWeight, Spacing, Radius } from '../../constants/tokens';
-import { EXERCISE_LIBRARY, MUSCLE_GROUP_LABELS } from '../../constants/exercises';
+import { MUSCLE_GROUP_LABELS } from '../../constants/exercises';
 import type { Exercise } from '../../types';
 
 interface Props {
   visible: boolean;
+  exercises: Exercise[];
   onSelect: (exercise: Exercise) => void;
   onClose: () => void;
 }
 
-export function ExercisePicker({ visible, onSelect, onClose }: Props) {
+export function ExercisePicker({
+  visible,
+  exercises,
+  onSelect,
+  onClose,
+}: Props) {
   const [query, setQuery] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
 
   const groups = useMemo(() => {
-    return Array.from(new Set(EXERCISE_LIBRARY.map((e) => e.muscleGroup)));
-  }, []);
+    return Array.from(new Set(exercises.map((e) => e.muscleGroup)));
+  }, [exercises]);
 
   const filtered = useMemo(() => {
-    return EXERCISE_LIBRARY.filter((e) => {
+    return exercises.filter((e) => {
       const matchQuery = e.name.toLowerCase().includes(query.toLowerCase());
       const matchGroup = !selectedGroup || e.muscleGroup === selectedGroup;
       return matchQuery && matchGroup;
     });
-  }, [query, selectedGroup]);
+  }, [exercises, query, selectedGroup]);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">

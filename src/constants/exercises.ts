@@ -48,6 +48,10 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   { id: 'calf_raise', name: 'Calf Raise', muscleGroup: 'calves', equipment: 'Machine' },
 ];
 
+export function mergeExerciseLibrary(custom: Exercise[]): Exercise[] {
+  return [...custom, ...EXERCISE_LIBRARY];
+}
+
 export const MUSCLE_GROUP_LABELS: Record<string, string> = {
   chest: 'Chest',
   back: 'Back',

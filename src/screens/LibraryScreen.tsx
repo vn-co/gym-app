@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,10 @@ import {
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, FontSize, FontWeight, Spacing, Radius } from '../constants/tokens';
-import { EXERCISE_LIBRARY, MUSCLE_GROUP_LABELS } from '../constants/exercises';
+import {
+  mergeExerciseLibrary,
+  MUSCLE_GROUP_LABELS,
+} from '../constants/exercises';
 import { getCustomExercises, saveCustomExercise, deleteCustomExercise } from '../services/storage';
 import { generateId } from '../utils';
 import type { Exercise, MuscleGroup } from '../types';
@@ -66,7 +69,7 @@ export function LibraryScreen() {
   useFocusEffect(useCallback(() => { loadCustom(); }, [loadCustom]));
 
   const allExercises = useMemo(
-    () => [...customExercises, ...EXERCISE_LIBRARY],
+    () => mergeExerciseLibrary(customExercises),
     [customExercises],
   );
 

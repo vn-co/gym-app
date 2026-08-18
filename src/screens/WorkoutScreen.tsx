@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -16,8 +16,13 @@ import { useWorkoutTimer } from '../hooks/useWorkoutTimer';
 import { SessionHeader } from '../components/workout/SessionHeader';
 import { ExerciseCard } from '../components/workout/ExerciseCard';
 import { ExercisePicker } from '../components/workout/ExercisePicker';
-import { saveSession, updatePersonalRecords } from '../services/storage';
-import { generateId, calcVolume } from '../utils';
+import {
+  getCustomExercises,
+  saveSession,
+  updatePersonalRecords,
+} from '../services/storage';
+import { mergeExerciseLibrary } from '../constants/exercises';
+import { calcVolume } from '../utils';
 import type { Exercise, WorkoutSession } from '../types';
 
 export function WorkoutScreen() {
@@ -30,6 +35,9 @@ export function WorkoutScreen() {
   const removeExercise = useWorkoutStore((s) => s.removeExercise);
 
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerExercises, setPickerExercises] = useState<Exercise[]>(() =>
+    mergeExerciseLibrary([]),
+  );
   const [nameModalVisible, setNameModalVisible] = useState(false);
   const [workoutName, setWorkoutName] = useState('');
 
@@ -48,6 +56,19 @@ export function WorkoutScreen() {
       exerciseId: exercise.id,
       exerciseName: exercise.name,
     });
+  };
+
+  const handleOpenPicker = async () => {
+    try {
+      const custom = await getCustomExercises();
+      setPickerExercises(mergeExerciseLibrary(custom));
+      setPickerVisible(true);
+    } catch {
+      Alert.alert(
+        'Couldn’t load exercises',
+        'Your saved exercises could not be loaded. Try again.',
+      );
+    }
   };
 
   const handleFinishWorkout = () => {
@@ -183,7 +204,7 @@ export function WorkoutScreen() {
         {/* Add Exercise */}
         <TouchableOpacity
           style={styles.addExerciseBtn}
-          onPress={() => setPickerVisible(true)}
+          onPress={handleOpenPicker}
         >
           <Text style={styles.addExerciseBtnText}>+ Add Exercise</Text>
         </TouchableOpacity>
@@ -202,6 +223,7 @@ export function WorkoutScreen() {
 
       <ExercisePicker
         visible={pickerVisible}
+        exercises={pickerExercises}
         onSelect={handleAddExercise}
         onClose={() => setPickerVisible(false)}
       />

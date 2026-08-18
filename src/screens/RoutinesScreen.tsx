@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import { useFocusEffect, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, FontSize, FontWeight, Spacing, Radius } from '../constants/tokens';
 import { getRoutines, saveRoutine, deleteRoutine, touchRoutineLastUsed, getCustomExercises } from '../services/storage';
-import { EXERCISE_LIBRARY } from '../constants/exercises';
+import { mergeExerciseLibrary } from '../constants/exercises';
 import { useWorkoutStore } from '../store/workoutStore';
 import { RoutineCard } from '../components/routines/RoutineCard';
 import { RoutineBuilder } from '../components/routines/RoutineBuilder';
@@ -20,7 +20,9 @@ import type { Routine, Exercise } from '../types';
 
 export function RoutinesScreen() {
   const [routines, setRoutines] = useState<Routine[]>([]);
-  const [allExercises, setAllExercises] = useState<Exercise[]>(EXERCISE_LIBRARY);
+  const [allExercises, setAllExercises] = useState<Exercise[]>(() =>
+    mergeExerciseLibrary([]),
+  );
   const [builderVisible, setBuilderVisible] = useState(false);
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -35,8 +37,7 @@ export function RoutinesScreen() {
         getCustomExercises(),
       ]);
       setRoutines(r);
-      // Merge static + custom, custom first so they show up at top of picker
-      setAllExercises([...custom, ...EXERCISE_LIBRARY]);
+      setAllExercises(mergeExerciseLibrary(custom));
     } catch {
       Alert.alert(
         'Couldn’t load saved data',
