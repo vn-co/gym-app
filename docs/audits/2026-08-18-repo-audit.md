@@ -24,6 +24,18 @@ The verified repair pass completed on `main` with these outcomes:
 - Manual workouts can select saved custom exercises.
 - The dependency audit still reports 23 transitive advisories (15 high, 8 moderate, 0 critical). They remain documented because npm's forced fix proposes unsupported Expo/React Native downgrades.
 
+## Post-audit follow-up: active workout recovery
+
+The 2026-08-18 recovery phase resolves the memory-only active-workout risk:
+
+- One versioned active session is persisted through Zustand and AsyncStorage.
+- Meaningful workout mutations are written in order; the timer display does not write once per second.
+- Running duration is derived from timestamps, so backgrounding and process termination do not undercount it.
+- Explicitly paused time remains paused after restoration.
+- Startup hydration settles before workout-dependent navigation renders and does not force a redirect.
+- Corrupt or unavailable active-session storage surfaces one coalesced warning without discarding the in-memory workout.
+- Completion clears the active draft only after both the completed session and personal records save successfully.
+
 ## Verified findings
 
 | Priority | Finding | Evidence | Disposition |
@@ -34,7 +46,7 @@ The verified repair pass completed on `main` with these outcomes:
 | P0 | Strict TypeScript does not pass. | `npx tsc --noEmit` reports an unsupported `StatusBar` prop and a scalar/array contract mismatch in `startSessionFromRoutine`. | Fix now and enforce typechecking through an npm script. |
 | P1 | The one-year progress chart ignores six days out of every seven. | `buildProgressData(..., '1y')` creates weekly labels but filters each bucket through only a 24-hour window. A session from yesterday produced `chartedVolume: 0`. | Add regression coverage and use real seven-day buckets. |
 | P1 | Storage corruption or read failure is reported as valid empty data. A later write can then overwrite recoverable history with a new empty-based list. | Every collection getter catches all errors and returns `[]`; every save performs read-modify-write. | Make missing data return `[]`, but propagate invalid JSON and I/O failures; show user-facing errors and keep the active form/session intact. |
-| P1 | Active workouts exist only in memory. An app reload, process eviction, or crash loses the current workout. The one-second counter can also undercount while iOS backgrounds the app. | The Zustand store has no hydration/persistence and `tickSecond` only increments from a foreground interval. | Deferred architecture task: persist meaningful session mutations and derive elapsed time from timestamps without writing once per second. |
+| P1 | Active workouts exist only in memory. An app reload, process eviction, or crash loses the current workout. The one-second counter can also undercount while iOS backgrounds the app. | The Zustand store has no hydration/persistence and `tickSecond` only increments from a foreground interval. | Resolved 2026-08-18 with versioned session persistence, ordered writes, startup hydration, and timestamp-derived timing. |
 | P1 | Local history has no schema version, migration, export, or backup path. Uninstalling the app can permanently remove all workout data. | Raw unversioned arrays are stored only in AsyncStorage. | Deferred product/data task before long-term daily use. |
 | P2 | Custom exercises cannot be added to an empty/manual workout. | `ExercisePicker` reads only `EXERCISE_LIBRARY`; Routines and Library separately merge custom exercises. | Fix now with one shared merge function and an injected picker list. |
 | P2 | Progress UI can claim that a selected range has data when all sessions are outside that range. Seven-day percent change compares unequal windows. | `hasData` checks all stored sessions; the split is 3 days versus 4 days. | Fix now with point-level data detection and equal comparison windows. |
@@ -76,8 +88,7 @@ Ranked, report-only findings:
 
 ## Deferred sequence
 
-1. Design and implement crash-safe active-session persistence and timestamp-based timing.
-2. Add versioned storage migrations plus JSON/CSV export and an import/restore path.
-3. Redesign Workout using real mobile reference patterns, then propagate the design system and accessibility semantics.
-4. Test the release UI on the physical iPhone.
-5. Add EAS internal-distribution configuration and produce the standalone iOS build.
+1. Add versioned storage migrations plus JSON/CSV export and an import/restore path.
+2. Redesign Workout using real mobile reference patterns, then propagate the design system and accessibility semantics.
+3. Test the release UI on the physical iPhone.
+4. Add EAS internal-distribution configuration and produce the standalone iOS build.

@@ -453,17 +453,17 @@ git commit -m "fix: retain active workout until finish is durable"
 - Consumes: Tasks 1–3
 - Produces: verified recovery behavior and accurate documentation on GitHub `main`
 
-- [ ] **Step 1: Refresh documentation**
+- [x] **Step 1: Refresh documentation**
 
 State that unfinished workouts restore after process termination, running time catches up from timestamps, and paused time remains paused. Remove the obsolete memory-only limitation. Keep backup/export/import deferred.
 
 Add a dated audit follow-up recording timestamp timing, versioned session persistence, startup hydration, ordered writes, failure feedback, and regression coverage.
 
-- [ ] **Step 2: Mark completed plan checkboxes**
+- [x] **Step 2: Mark completed plan checkboxes**
 
 Change each completed `- [ ]` to `- [x]` only after its command and expected outcome have been observed.
 
-- [ ] **Step 3: Run the clean final gate**
+- [x] **Step 3: Run the clean final gate**
 
 Run:
 
@@ -481,14 +481,14 @@ git status --short --branch
 
 Expected: clean install, TypeScript, all regression tests, all Expo Doctor checks, and iOS export pass. Report known transitive advisories without forcing a breaking downgrade.
 
-- [ ] **Step 4: Commit documentation**
+- [x] **Step 4: Commit documentation**
 
 ~~~bash
 git add SETUP_GUIDE.md docs/audits/2026-08-18-repo-audit.md docs/superpowers/plans/2026-08-18-active-workout-persistence.md
 git commit -m "docs: document active workout recovery"
 ~~~
 
-- [ ] **Step 5: Verify and push `main`**
+- [x] **Step 5: Verify and push `main`**
 
 Run:
 

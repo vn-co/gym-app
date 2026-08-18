@@ -83,12 +83,14 @@ All user data is stored in AsyncStorage:
 | Display name | `gym_user_name` |
 | Custom exercises | `gym_custom_exercises` |
 | Routines | `gym_routines` |
+| Unfinished workout | `gym_active_session` |
 
 Missing keys are treated as empty. Invalid JSON or storage I/O failures are surfaced instead of silently replacing history with an empty list.
 
+Unfinished workouts are restored before the app displays workout-dependent content. A running timer catches up from timestamps after the phone is locked, the app is backgrounded, or the process is restarted. An explicitly paused workout remains paused. Finishing successfully or confirming cancellation clears the saved draft.
+
 Current limitations:
 
-- Active workouts are still memory-only and can be lost if the app process is killed.
 - AsyncStorage data is not encrypted.
 - There is no schema migration, export/import, or backup flow yet.
 - Uninstalling the app can remove all local history.
