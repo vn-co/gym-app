@@ -5,13 +5,20 @@ import {
   Text,
   TextInput,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
-  SafeAreaView,
 } from 'react-native';
-import { Colors, FontSize, FontWeight, Spacing, Radius } from '../../constants/tokens';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  Colors,
+  FontSize,
+  FontWeight,
+  Radius,
+  Spacing,
+} from '../../constants/tokens';
 import { MUSCLE_GROUP_LABELS } from '../../constants/exercises';
 import type { Exercise } from '../../types';
+import { AppIcon } from '../icons/AppIcon';
 
 interface Props {
   visible: boolean;
@@ -44,18 +51,25 @@ export function ExercisePicker({
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Add Exercise</Text>
-          <TouchableOpacity onPress={onClose}>
+          <Text style={styles.title}>Add exercise</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close exercise picker"
+            onPress={onClose}
+            style={({ pressed }) => [
+              styles.doneButton,
+              pressed && styles.pressed,
+            ]}
+          >
             <Text style={styles.close}>Done</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
-        {/* Search */}
         <View style={styles.searchContainer}>
           <TextInput
             style={styles.search}
+            accessibilityLabel="Search exercises"
             value={query}
             onChangeText={setQuery}
             placeholder="Search exercises..."
@@ -65,49 +79,73 @@ export function ExercisePicker({
           />
         </View>
 
-        {/* Muscle group filter chips */}
         <FlatList
           data={[null, ...groups]}
           horizontal
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item ?? 'all'}
           style={styles.chips}
-          contentContainerStyle={{ paddingHorizontal: Spacing.lg, gap: Spacing.sm }}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[styles.chip, selectedGroup === item && styles.chipActive]}
-              onPress={() => setSelectedGroup(item)}
-            >
-              <Text style={[styles.chipText, selectedGroup === item && styles.chipTextActive]}>
-                {item ? MUSCLE_GROUP_LABELS[item] : 'All'}
-              </Text>
-            </TouchableOpacity>
-          )}
+          contentContainerStyle={styles.chipContent}
+          renderItem={({ item }) => {
+            const label = item ? MUSCLE_GROUP_LABELS[item] : 'All';
+            const selected = selectedGroup === item;
+
+            return (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Filter by ${label}`}
+                accessibilityState={{ selected }}
+                style={[styles.chip, selected && styles.chipActive]}
+                onPress={() => setSelectedGroup(item)}
+              >
+                <Text style={[styles.chipText, selected && styles.chipTextActive]}>
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          }}
         />
 
-        {/* Exercise list */}
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 32 }}
+          contentContainerStyle={styles.exerciseList}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.exerciseRow}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Add ${item.name}`}
+              style={({ pressed }) => [
+                styles.exerciseRow,
+                pressed && styles.exerciseRowPressed,
+              ]}
               onPress={() => {
                 onSelect(item);
                 onClose();
               }}
             >
-              <View>
-                <Text style={styles.exerciseName}>{item.name}</Text>
-                <Text style={styles.exerciseMeta}>
+              <View style={styles.exerciseCopy}>
+                <Text style={styles.exerciseName} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <Text style={styles.exerciseMeta} numberOfLines={1}>
                   {MUSCLE_GROUP_LABELS[item.muscleGroup]} · {item.equipment}
                 </Text>
               </View>
-              <Text style={styles.plus}>+</Text>
-            </TouchableOpacity>
+              <View style={styles.addIcon}>
+                <AppIcon name="add" size={20} color={Colors.accent} />
+              </View>
+            </Pressable>
           )}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
+          ListEmptyComponent={
+            <View style={styles.emptyResults}>
+              <Text style={styles.emptyResultsText}>
+                No exercises match your search.
+              </Text>
+            </View>
+          }
         />
       </SafeAreaView>
     </Modal>
@@ -124,7 +162,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    minHeight: 64,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
@@ -132,6 +170,15 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
     color: Colors.textPrimary,
+  },
+  doneButton: {
+    minWidth: 44,
+    height: 44,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  pressed: {
+    opacity: 0.65,
   },
   close: {
     fontSize: FontSize.md,
@@ -146,26 +193,33 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
+    paddingVertical: 0,
+    height: 48,
     fontSize: FontSize.md,
     color: Colors.textPrimary,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   chips: {
-    maxHeight: 44,
+    maxHeight: 48,
     marginBottom: Spacing.md,
   },
+  chipContent: {
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.sm,
+  },
   chip: {
+    height: 36,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
     borderRadius: Radius.full,
     backgroundColor: Colors.bgCard,
     borderWidth: 1,
     borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chipActive: {
-    backgroundColor: Colors.accent,
+    backgroundColor: Colors.accentBg,
     borderColor: Colors.accent,
   },
   chipText: {
@@ -174,14 +228,27 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.medium,
   },
   chipTextActive: {
-    color: '#000',
-    fontWeight: FontWeight.bold,
+    color: Colors.accent,
+    fontWeight: FontWeight.semibold,
+  },
+  exerciseList: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: 32,
+    flexGrow: 1,
   },
   exerciseRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: Spacing.md,
+    minHeight: 64,
+    borderRadius: Radius.md,
+  },
+  exerciseRowPressed: {
+    backgroundColor: Colors.bgCard,
+  },
+  exerciseCopy: {
+    flex: 1,
+    paddingRight: Spacing.md,
   },
   exerciseName: {
     fontSize: FontSize.md,
@@ -193,13 +260,27 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.textMuted,
   },
-  plus: {
-    fontSize: FontSize.xl,
-    color: Colors.accent,
-    fontWeight: FontWeight.bold,
+  addIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.accentBg,
   },
   sep: {
     height: 1,
     backgroundColor: Colors.border,
+  },
+  emptyResults: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.xl,
+  },
+  emptyResultsText: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.md,
+    textAlign: 'center',
   },
 });

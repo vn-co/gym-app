@@ -211,6 +211,15 @@ export function WorkoutScreen() {
       >
         <SessionHeader />
 
+        {session.exercises.length === 0 ? (
+          <View style={styles.firstExercisePrompt}>
+            <Text style={styles.firstExerciseTitle}>Add your first exercise</Text>
+            <Text style={styles.firstExerciseCopy}>
+              Choose an exercise to begin logging sets.
+            </Text>
+          </View>
+        ) : null}
+
         {session.exercises.map((ex) => (
           <ExerciseCard
             key={ex.id}
@@ -257,6 +266,26 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
   scroll: { flex: 1 },
   content: { padding: Spacing.lg },
+
+  firstExercisePrompt: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.xl,
+    marginBottom: Spacing.md,
+  },
+  firstExerciseTitle: {
+    color: Colors.textPrimary,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    marginBottom: Spacing.xs,
+  },
+  firstExerciseCopy: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.md,
+    lineHeight: 21,
+  },
 
   cancelBtn: {
     paddingVertical: Spacing.md,
