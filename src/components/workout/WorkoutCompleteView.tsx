@@ -1,12 +1,23 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import {
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import {
   Colors,
+  FontFamily,
   FontSize,
   FontWeight,
+  MotionDuration,
   Radius,
   Spacing,
 } from '../../constants/tokens';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import type {
   HeartRateSample,
   PersonalRecord,
@@ -14,7 +25,9 @@ import type {
 } from '../../types';
 import { calcVolume, formatDuration, formatWeight } from '../../utils';
 import { getVolumeComparison } from '../../utils/workoutCompletion';
+import { getMotionDuration } from '../../utils/uiPresentation';
 import { AppIcon } from '../icons/AppIcon';
+import { AmbientBackdrop } from '../ui/AmbientBackdrop';
 
 interface Props {
   workout: WorkoutSession;
@@ -28,15 +41,16 @@ function HeartRateGraph({ samples }: { samples: HeartRateSample[] }) {
   if (samples.length < 2) {
     return (
       <View style={styles.graphEmpty}>
+        <Text style={styles.graphEmptyTitle}>No heart-rate trace</Text>
         <Text style={styles.graphEmptyText}>
-          Not enough heart-rate samples for a graph.
+          The workout is saved even when a sensor is unavailable.
         </Text>
       </View>
     );
   }
 
   const width = 320;
-  const height = 112;
+  const height = 122;
   const values = samples.map((sample) => sample.bpm);
   const minimum = Math.min(...values);
   const maximum = Math.max(...values);
@@ -44,7 +58,7 @@ function HeartRateGraph({ samples }: { samples: HeartRateSample[] }) {
   const path = samples
     .map((sample, index) => {
       const x = (index / (samples.length - 1)) * width;
-      const y = height - ((sample.bpm - minimum) / range) * (height - 16) - 8;
+      const y = height - ((sample.bpm - minimum) / range) * (height - 22) - 11;
       return `${index === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
     })
     .join(' ');
@@ -55,8 +69,17 @@ function HeartRateGraph({ samples }: { samples: HeartRateSample[] }) {
         <Path
           d={path}
           fill="none"
+          stroke={Colors.accent}
+          strokeWidth={11}
+          strokeOpacity={0.08}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path
+          d={path}
+          fill="none"
           stroke={Colors.chartLine}
-          strokeWidth={3}
+          strokeWidth={2.5}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -69,7 +92,15 @@ function HeartRateGraph({ samples }: { samples: HeartRateSample[] }) {
   );
 }
 
-function Metric({ label, value, unit }: { label: string; value: string; unit?: string }) {
+function Metric({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+}) {
   return (
     <View style={styles.metric}>
       <Text style={styles.metricLabel}>{label}</Text>
@@ -88,6 +119,8 @@ export function WorkoutCompleteView({
   bottomInset,
   onDone,
 }: Props) {
+  const reduceMotion = useReducedMotion();
+  const entrance = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
   const comparison = getVolumeComparison(
     workout.totalVolume,
     previousComparable,
@@ -95,331 +128,519 @@ export function WorkoutCompleteView({
   const health = workout.health;
   const healthSaved = health?.status === 'saved';
   const samples = health?.heartRateSamples ?? [];
+  const comparisonValue =
+    comparison.percentage == null
+      ? 'First comparable session'
+      : `${comparison.percentage >= 0 ? '+' : ''}${comparison.percentage}% ${comparison.label}`;
+
+  useEffect(() => {
+    Animated.timing(entrance, {
+      toValue: 1,
+      duration: getMotionDuration(reduceMotion, MotionDuration.standard),
+      useNativeDriver: true,
+    }).start();
+  }, [entrance, reduceMotion]);
+
+  const translateY = entrance.interpolate({
+    inputRange: [0, 1],
+    outputRange: [12, 0],
+  });
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={[
-        styles.content,
-        { paddingBottom: bottomInset + Spacing.xxl },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.hero}>
-        <View style={styles.completeIcon}>
-          <AppIcon name="check" size={28} color={Colors.bg} strokeWidth={2.4} />
-        </View>
-        <Text style={styles.eyebrow}>SESSION SAVED</Text>
-        <Text style={styles.title}>Workout complete</Text>
-        <Text style={styles.workoutName}>{workout.name}</Text>
-      </View>
-
-      <View style={styles.metricGrid}>
-        <Metric label="DURATION" value={formatDuration(workout.durationSeconds)} />
-        <Metric label="VOLUME" value={formatWeight(workout.totalVolume)} unit="kg" />
-        <Metric label="SETS" value={String(workout.totalSets)} />
-        <Metric
-          label="ACTIVE"
-          value={
-            health?.activeEnergyKilocalories == null
-              ? '—'
-              : String(Math.round(health.activeEnergyKilocalories))
-          }
-          unit="kcal"
-        />
-      </View>
-
-      <View style={styles.volumeContext}>
-        <View>
-          <Text style={styles.sectionLabel}>VOLUME CONTEXT</Text>
-          <Text style={styles.contextLabel}>{comparison.label}</Text>
-        </View>
-        <Text style={styles.contextValue}>
-          {comparison.percentage == null
-            ? '—'
-            : `${comparison.percentage >= 0 ? '+' : ''}${comparison.percentage}%`}
-        </Text>
-      </View>
-
-      {newRecords.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>PERSONAL RECORDS</Text>
-          {newRecords.map((record) => (
-            <View key={record.exerciseId} style={styles.recordRow}>
-              <View style={styles.recordMark}>
-                <Text style={styles.recordMarkText}>PR</Text>
-              </View>
-              <View style={styles.recordCopy}>
-                <Text style={styles.recordName}>{record.exerciseName}</Text>
-                <Text style={styles.recordDetail}>
-                  {formatWeight(record.weight)} kg × {record.reps} reps
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      ) : null}
-
-      <View style={styles.section}>
-        <View style={styles.sectionHeadingRow}>
-          <Text style={styles.sectionLabel}>HEART RATE</Text>
-          <Text style={styles.sectionMeta}>
-            {health?.averageHeartRateBpm == null
-              ? 'No data'
-              : `${Math.round(health.averageHeartRateBpm)} bpm avg`}
-          </Text>
-        </View>
-        <HeartRateGraph samples={samples} />
-        {health?.maximumHeartRateBpm != null ? (
-          <Text style={styles.heartPeak}>
-            Peak {Math.round(health.maximumHeartRateBpm)} bpm
-          </Text>
-        ) : null}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>EXERCISE BREAKDOWN</Text>
-        {workout.exercises.map((exercise, index) => {
-          const completedSets = exercise.sets.filter(
-            (setEntry) => setEntry.completed,
-          );
-          const record = newRecords.some(
-            (item) => item.exerciseId === exercise.exerciseId,
-          );
-          return (
-            <View key={exercise.id} style={styles.exerciseRow}>
-              <Text style={styles.exerciseIndex}>{index + 1}</Text>
-              <View style={styles.exerciseCopy}>
-                <View style={styles.exerciseNameRow}>
-                  <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
-                  {record ? <Text style={styles.exercisePr}>PR</Text> : null}
-                </View>
-                <Text style={styles.exerciseMeta}>
-                  {completedSets.length} sets · {formatWeight(calcVolume(completedSets))} kg
-                </Text>
-                {completedSets.length > 0 ? (
-                  <Text style={styles.exerciseSetDetails}>
-                    {completedSets
-                      .map(
-                        (setEntry) =>
-                          `${formatWeight(setEntry.weight)} kg × ${setEntry.reps}`,
-                      )
-                      .join('  ·  ')}
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={styles.healthStatus}>
-        <View
-          style={[
-            styles.healthDot,
-            !healthSaved && styles.healthDotUnavailable,
-          ]}
-        />
-        <View style={styles.healthCopy}>
-          <Text style={styles.healthTitle}>
-            {healthSaved
-              ? 'Saved to Apple Health'
-              : health?.status === 'failed'
-                ? 'Apple Health save failed'
-                : 'Apple Health unavailable'}
-          </Text>
-          <Text style={styles.healthDetail}>
-            {healthSaved
-              ? 'Your local workout and Apple Health session are linked.'
-              : 'Your workout is still saved safely on this device.'}
-          </Text>
-        </View>
-      </View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Done with workout summary"
-        style={({ pressed }) => [styles.doneButton, pressed && styles.pressed]}
-        onPress={onDone}
+    <View style={styles.root}>
+      <AmbientBackdrop intensity="hero" />
+      <Animated.View
+        style={[
+          styles.animatedContent,
+          { opacity: entrance, transform: [{ translateY }] },
+        ]}
       >
-        <Text style={styles.doneText}>Done</Text>
-      </Pressable>
-    </ScrollView>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: bottomInset + Spacing.xxl },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.hero}>
+            <View style={styles.completeIcon}>
+              <AppIcon
+                name="check"
+                size={24}
+                color={Colors.bg}
+                strokeWidth={2.5}
+              />
+            </View>
+            <Text style={styles.eyebrow}>SESSION SAVED</Text>
+            <Text style={styles.title}>Workout complete</Text>
+            <Text style={styles.workoutName}>{workout.name}</Text>
+          </View>
+
+          <View style={styles.metricStrip}>
+            <Metric
+              label="TIME"
+              value={formatDuration(workout.durationSeconds)}
+            />
+            <View style={styles.metricDivider} />
+            <Metric
+              label="ACTIVE"
+              value={
+                health?.activeEnergyKilocalories == null
+                  ? '—'
+                  : String(Math.round(health.activeEnergyKilocalories))
+              }
+              unit="kcal"
+            />
+            <View style={styles.metricDivider} />
+            <Metric
+              label="AVG HEART"
+              value={
+                health?.averageHeartRateBpm == null
+                  ? '—'
+                  : String(Math.round(health.averageHeartRateBpm))
+              }
+              unit="bpm"
+            />
+          </View>
+
+          <View style={styles.volumeCard}>
+            <View style={styles.volumeTop}>
+              <Text style={styles.sectionLabel}>TOTAL VOLUME</Text>
+              <Text style={styles.volumeSets}>{workout.totalSets} sets</Text>
+            </View>
+            <Text style={styles.volumeValue}>
+              {formatWeight(workout.totalVolume)}
+              <Text style={styles.volumeUnit}> kg</Text>
+            </Text>
+            <View style={styles.comparisonRow}>
+              <View style={styles.comparisonMark} />
+              <Text style={styles.comparisonText}>{comparisonValue}</Text>
+            </View>
+          </View>
+
+          {newRecords.length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>PERSONAL RECORDS</Text>
+              {newRecords.map((record) => (
+                <View key={record.exerciseId} style={styles.recordCard}>
+                  <View style={styles.recordBadge}>
+                    <Text style={styles.recordBadgeText}>NEW PR</Text>
+                  </View>
+                  <View style={styles.recordCopy}>
+                    <Text style={styles.recordName}>{record.exerciseName}</Text>
+                    <Text style={styles.recordDetail}>
+                      {formatWeight(record.weight)} kg × {record.reps} reps
+                    </Text>
+                  </View>
+                  <Text style={styles.recordSpark}>✦</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeadingRow}>
+              <Text style={styles.sectionLabel}>HEART RATE</Text>
+              <Text style={styles.sectionMeta}>
+                {health?.averageHeartRateBpm == null
+                  ? 'No data'
+                  : `${Math.round(health.averageHeartRateBpm)} avg · ${health.maximumHeartRateBpm == null ? '—' : Math.round(health.maximumHeartRateBpm)} max`}
+              </Text>
+            </View>
+            <View style={styles.graphCard}>
+              <HeartRateGraph samples={samples} />
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeadingRow}>
+              <Text style={styles.sectionLabel}>EXERCISE BREAKDOWN</Text>
+              <Text style={styles.sectionMeta}>
+                {workout.exercises.length} exercises
+              </Text>
+            </View>
+            <View style={styles.breakdown}>
+              {workout.exercises.map((exercise, index) => {
+                const completedSets = exercise.sets.filter(
+                  (setEntry) => setEntry.completed,
+                );
+                const record = newRecords.some(
+                  (item) => item.exerciseId === exercise.exerciseId,
+                );
+                const bestSet = completedSets.reduce<
+                  (typeof completedSets)[number] | null
+                >((best, setEntry) => {
+                  if (!best || setEntry.weight > best.weight) return setEntry;
+                  if (
+                    setEntry.weight === best.weight &&
+                    setEntry.reps > best.reps
+                  ) {
+                    return setEntry;
+                  }
+                  return best;
+                }, null);
+
+                return (
+                  <View key={exercise.id} style={styles.exerciseRow}>
+                    <Text style={styles.exerciseIndex}>
+                      {String(index + 1).padStart(2, '0')}
+                    </Text>
+                    <View style={styles.exerciseCopy}>
+                      <View style={styles.exerciseNameRow}>
+                        <Text style={styles.exerciseName}>
+                          {exercise.exerciseName}
+                        </Text>
+                        {record ? (
+                          <Text style={styles.exercisePr}>PR</Text>
+                        ) : null}
+                      </View>
+                      <Text style={styles.exerciseMeta}>
+                        {completedSets.length} sets ·{' '}
+                        {formatWeight(calcVolume(completedSets))} kg volume
+                      </Text>
+                      <Text style={styles.exerciseSetDetails}>
+                        {completedSets.length === 0
+                          ? 'No completed sets'
+                          : completedSets
+                              .map(
+                                (setEntry) =>
+                                  `${formatWeight(setEntry.weight)} × ${setEntry.reps}`,
+                              )
+                              .join('   ·   ')}
+                      </Text>
+                    </View>
+                    {bestSet ? (
+                      <View style={styles.bestSet}>
+                        <Text style={styles.bestSetLabel}>BEST</Text>
+                        <Text style={styles.bestSetValue}>
+                          {formatWeight(bestSet.weight)}×{bestSet.reps}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.healthStatus}>
+            <View
+              style={[
+                styles.healthDot,
+                !healthSaved && styles.healthDotUnavailable,
+              ]}
+            />
+            <View style={styles.healthCopy}>
+              <Text style={styles.healthTitle}>
+                {healthSaved
+                  ? 'Saved to Apple Health'
+                  : health?.status === 'failed'
+                    ? 'Apple Health save failed'
+                    : 'Saved locally'}
+              </Text>
+              <Text style={styles.healthDetail}>
+                {healthSaved
+                  ? 'This strength session is linked to your Apple Health history.'
+                  : 'Your exercises, sets, and records are safe on this device.'}
+              </Text>
+            </View>
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Done with workout summary"
+            style={({ pressed }) => [
+              styles.doneButton,
+              pressed && styles.pressed,
+            ]}
+            onPress={onDone}
+          >
+            <Text style={styles.doneText}>Done</Text>
+            <View style={styles.doneIcon}>
+              <AppIcon name="check" size={18} color={Colors.bg} />
+            </View>
+          </Pressable>
+        </ScrollView>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.lg },
+  root: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+  },
+  animatedContent: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  content: {
+    paddingHorizontal: Spacing.lg,
+  },
   hero: {
     alignItems: 'center',
     paddingTop: Spacing.xl,
     paddingBottom: Spacing.xxl,
   },
   completeIcon: {
-    width: 56,
-    height: 56,
+    width: 52,
+    height: 52,
     borderRadius: Radius.full,
-    backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.accent,
     marginBottom: Spacing.lg,
+    shadowColor: Colors.accent,
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
   },
   eyebrow: {
     color: Colors.accent,
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
     letterSpacing: 1.2,
-    marginBottom: Spacing.sm,
+    marginBottom: 6,
   },
   title: {
     color: Colors.textPrimary,
-    fontSize: FontSize.xxxl,
-    fontWeight: FontWeight.heavy,
-    letterSpacing: -1,
+    fontFamily: FontFamily.display,
+    fontSize: 40,
+    lineHeight: 46,
+    letterSpacing: -1.2,
+    textAlign: 'center',
   },
   workoutName: {
     color: Colors.textSecondary,
     fontSize: FontSize.md,
+    fontWeight: FontWeight.medium,
     marginTop: Spacing.sm,
+    textAlign: 'center',
   },
-  metricGrid: {
+  metricStrip: {
+    minHeight: 88,
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'stretch',
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: Colors.border,
-    marginBottom: Spacing.xxl,
+    paddingVertical: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   metric: {
-    width: '50%',
-    paddingVertical: Spacing.lg,
-    borderBottomWidth: 1,
-    borderColor: Colors.border,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metricDivider: {
+    width: 1,
+    backgroundColor: Colors.border,
+    marginHorizontal: Spacing.sm,
   },
   metricLabel: {
     color: Colors.textMuted,
-    fontSize: FontSize.xs,
+    fontSize: 9,
     fontWeight: FontWeight.semibold,
-    letterSpacing: 0.8,
-    marginBottom: Spacing.xs,
+    letterSpacing: 0.9,
+    marginBottom: 7,
+    textAlign: 'center',
   },
   metricValue: {
     color: Colors.textPrimary,
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
     fontVariant: ['tabular-nums'],
+    textAlign: 'center',
   },
   metricUnit: {
     color: Colors.textMuted,
-    fontSize: FontSize.sm,
+    fontSize: 9,
     fontWeight: FontWeight.medium,
   },
-  volumeContext: {
+  volumeCard: {
+    overflow: 'hidden',
+    borderRadius: Radius.xl,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+    padding: Spacing.lg,
+    marginBottom: Spacing.xxl,
+  },
+  volumeTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: Spacing.xxl,
-    marginBottom: Spacing.xxl,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   sectionLabel: {
     color: Colors.textMuted,
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
-    letterSpacing: 0.9,
+    letterSpacing: 1,
   },
-  contextLabel: {
+  volumeSets: {
     color: Colors.textSecondary,
     fontSize: FontSize.sm,
-    marginTop: Spacing.xs,
   },
-  contextValue: {
+  volumeValue: {
     color: Colors.textPrimary,
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.bold,
-    fontVariant: ['tabular-nums'],
+    fontFamily: FontFamily.display,
+    fontSize: 50,
+    letterSpacing: -1.4,
+    marginTop: Spacing.md,
   },
-  section: { marginBottom: Spacing.xxl },
+  volumeUnit: {
+    color: Colors.textMuted,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.xl,
+  },
+  comparisonRow: {
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+  },
+  comparisonMark: {
+    width: 16,
+    height: 3,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.accentSoft,
+  },
+  comparisonText: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+  },
+  section: {
+    marginBottom: Spacing.xxl,
+  },
   sectionHeadingRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: Spacing.md,
   },
-  sectionMeta: { color: Colors.textSecondary, fontSize: FontSize.sm },
-  recordRow: {
+  sectionMeta: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+  },
+  recordCard: {
+    minHeight: 78,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  recordMark: {
-    width: 38,
-    height: 38,
-    borderRadius: Radius.full,
+    borderRadius: Radius.lg,
     backgroundColor: Colors.accentBg,
+    borderWidth: 1,
+    borderColor: Colors.accentBorder,
+    padding: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  recordBadge: {
+    minWidth: 58,
+    height: 30,
+    borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.accent,
     marginRight: Spacing.md,
   },
-  recordMarkText: {
-    color: Colors.accent,
-    fontSize: FontSize.xs,
+  recordBadgeText: {
+    color: Colors.bg,
+    fontSize: 9,
     fontWeight: FontWeight.heavy,
+    letterSpacing: 0.5,
   },
-  recordCopy: { flex: 1 },
+  recordCopy: {
+    flex: 1,
+  },
   recordName: {
     color: Colors.textPrimary,
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.semibold,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.lg,
   },
   recordDetail: {
     color: Colors.textSecondary,
     fontSize: FontSize.sm,
     marginTop: 3,
   },
+  recordSpark: {
+    color: Colors.accent,
+    fontSize: FontSize.xl,
+  },
+  graphCard: {
+    overflow: 'hidden',
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+  },
   graphWrap: {
-    paddingTop: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingTop: Spacing.xs,
   },
   graphRange: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingBottom: Spacing.sm,
+    paddingBottom: Spacing.md,
   },
-  graphRangeText: { color: Colors.textMuted, fontSize: FontSize.xs },
+  graphRangeText: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontVariant: ['tabular-nums'],
+  },
   graphEmpty: {
-    height: 112,
+    height: 134,
     alignItems: 'center',
     justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingHorizontal: Spacing.xl,
   },
-  graphEmptyText: { color: Colors.textMuted, fontSize: FontSize.sm },
-  heartPeak: {
+  graphEmptyTitle: {
     color: Colors.textSecondary,
-    fontSize: FontSize.sm,
-    marginTop: Spacing.sm,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+  },
+  graphEmptyText: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    lineHeight: 17,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+  },
+  breakdown: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
   },
   exerciseRow: {
-    minHeight: 68,
+    minHeight: 92,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   exerciseIndex: {
-    width: 32,
+    width: 34,
     color: Colors.textMuted,
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.xs,
   },
-  exerciseCopy: { flex: 1 },
-  exerciseNameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  exerciseCopy: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+  },
+  exerciseNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
   exerciseName: {
     color: Colors.textPrimary,
     fontSize: FontSize.md,
@@ -427,20 +648,36 @@ const styles = StyleSheet.create({
   },
   exercisePr: {
     color: Colors.accent,
-    fontSize: FontSize.xs,
+    fontSize: 9,
     fontWeight: FontWeight.bold,
   },
   exerciseMeta: {
     color: Colors.textMuted,
-    fontSize: FontSize.sm,
-    marginTop: 3,
+    fontSize: FontSize.xs,
+    marginTop: 4,
   },
   exerciseSetDetails: {
     color: Colors.textSecondary,
-    fontSize: FontSize.xs,
-    lineHeight: 18,
+    fontFamily: FontFamily.data,
+    fontSize: 10,
+    lineHeight: 17,
     marginTop: Spacing.xs,
-    marginBottom: Spacing.sm,
+  },
+  bestSet: {
+    alignItems: 'flex-end',
+    marginLeft: Spacing.sm,
+  },
+  bestSetLabel: {
+    color: Colors.textMuted,
+    fontSize: 8,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 0.8,
+  },
+  bestSetValue: {
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.xs,
+    marginTop: 4,
   },
   healthStatus: {
     flexDirection: 'row',
@@ -459,8 +696,12 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginRight: Spacing.md,
   },
-  healthDotUnavailable: { backgroundColor: Colors.textMuted },
-  healthCopy: { flex: 1 },
+  healthDotUnavailable: {
+    backgroundColor: Colors.textMuted,
+  },
+  healthCopy: {
+    flex: 1,
+  },
   healthTitle: {
     color: Colors.textPrimary,
     fontSize: FontSize.md,
@@ -473,16 +714,30 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
   },
   doneButton: {
-    height: 54,
+    minHeight: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     borderRadius: Radius.lg,
     backgroundColor: Colors.accent,
+    paddingLeft: Spacing.lg,
+    paddingRight: 5,
+  },
+  doneIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#00000018',
   },
   doneText: {
     color: Colors.bg,
-    fontSize: FontSize.lg,
+    fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
   },
-  pressed: { opacity: 0.82, transform: [{ scale: 0.99 }] },
+  pressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.99 }],
+  },
 });

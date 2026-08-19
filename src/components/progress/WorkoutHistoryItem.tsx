@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   Colors,
+  FontFamily,
   FontSize,
   FontWeight,
+  Radius,
   Spacing,
 } from '../../constants/tokens';
 import type { WorkoutSession } from '../../types';
@@ -20,8 +22,8 @@ interface Props {
 }
 
 function healthStatus(session: WorkoutSession): string {
-  if (session.health?.status === 'saved') return 'Saved to Health';
-  if (session.health?.status === 'failed') return 'Health save failed';
+  if (session.health?.status === 'saved') return 'Health synced';
+  if (session.health?.status === 'failed') return 'Sync failed';
   return 'Local only';
 }
 
@@ -30,7 +32,7 @@ export function WorkoutHistoryItem({ session }: Props) {
   const health = session.health;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, expanded && styles.containerExpanded]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${expanded ? 'Collapse' : 'Expand'} ${session.name}`}
@@ -43,9 +45,12 @@ export function WorkoutHistoryItem({ session }: Props) {
           <Text style={styles.time}>{formatSessionTime(session.startTime)}</Text>
         </View>
         <View style={styles.titleBlock}>
-          <Text style={styles.name} numberOfLines={1}>{session.name}</Text>
+          <Text style={styles.name} numberOfLines={1}>
+            {session.name}
+          </Text>
           <Text style={styles.summary}>
-            {formatDuration(session.durationSeconds)} · {formatWeight(session.totalVolume)} kg
+            {formatDuration(session.durationSeconds)} ·{' '}
+            {formatWeight(session.totalVolume)} kg
           </Text>
         </View>
         <View style={styles.statusBlock}>
@@ -57,7 +62,9 @@ export function WorkoutHistoryItem({ session }: Props) {
           >
             {healthStatus(session)}
           </Text>
-          <Text style={styles.disclosure}>{expanded ? '−' : '+'}</Text>
+          <View style={styles.disclosure}>
+            <Text style={styles.disclosureText}>{expanded ? '−' : '+'}</Text>
+          </View>
         </View>
       </Pressable>
 
@@ -73,8 +80,9 @@ export function WorkoutHistoryItem({ session }: Props) {
                 <Text style={styles.metricUnit}> kcal</Text>
               </Text>
             </View>
+            <View style={styles.metricDivider} />
             <View style={styles.metric}>
-              <Text style={styles.metricLabel}>AVG HR</Text>
+              <Text style={styles.metricLabel}>AVG HEART</Text>
               <Text style={styles.metricValue}>
                 {health?.averageHeartRateBpm == null
                   ? '—'
@@ -82,8 +90,9 @@ export function WorkoutHistoryItem({ session }: Props) {
                 <Text style={styles.metricUnit}> bpm</Text>
               </Text>
             </View>
+            <View style={styles.metricDivider} />
             <View style={styles.metric}>
-              <Text style={styles.metricLabel}>MAX HR</Text>
+              <Text style={styles.metricLabel}>MAX HEART</Text>
               <Text style={styles.metricValue}>
                 {health?.maximumHeartRateBpm == null
                   ? '—'
@@ -93,31 +102,40 @@ export function WorkoutHistoryItem({ session }: Props) {
             </View>
           </View>
 
-          {session.exercises.map((exercise) => {
-            const completedSets = exercise.sets.filter(
-              (setEntry) => setEntry.completed,
-            );
-            return (
-              <View key={exercise.id} style={styles.exerciseRow}>
-                <View style={styles.exerciseHeading}>
-                  <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
-                  <Text style={styles.exerciseVolume}>
-                    {formatWeight(calcVolume(completedSets))} kg
+          <View style={styles.exerciseList}>
+            {session.exercises.map((exercise, index) => {
+              const completedSets = exercise.sets.filter(
+                (setEntry) => setEntry.completed,
+              );
+              return (
+                <View key={exercise.id} style={styles.exerciseRow}>
+                  <Text style={styles.exerciseIndex}>
+                    {String(index + 1).padStart(2, '0')}
                   </Text>
+                  <View style={styles.exerciseCopy}>
+                    <View style={styles.exerciseHeading}>
+                      <Text style={styles.exerciseName}>
+                        {exercise.exerciseName}
+                      </Text>
+                      <Text style={styles.exerciseVolume}>
+                        {formatWeight(calcVolume(completedSets))} kg
+                      </Text>
+                    </View>
+                    <Text style={styles.setDetails}>
+                      {completedSets.length === 0
+                        ? 'No completed sets'
+                        : completedSets
+                            .map(
+                              (setEntry) =>
+                                `${formatWeight(setEntry.weight)} × ${setEntry.reps}`,
+                            )
+                            .join('   ·   ')}
+                    </Text>
+                  </View>
                 </View>
-                <Text style={styles.setDetails}>
-                  {completedSets.length === 0
-                    ? 'No completed sets'
-                    : completedSets
-                        .map(
-                          (setEntry) =>
-                            `${formatWeight(setEntry.weight)} kg × ${setEntry.reps}`,
-                        )
-                        .join('  ·  ')}
-                </Text>
-              </View>
-            );
-          })}
+              );
+            })}
+          </View>
         </View>
       ) : null}
     </View>
@@ -125,84 +143,147 @@ export function WorkoutHistoryItem({ session }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { borderBottomWidth: 1, borderBottomColor: Colors.border },
+  container: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  containerExpanded: {
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+    backgroundColor: Colors.bgCard,
+    marginVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+  },
   header: {
-    minHeight: 78,
+    minHeight: 86,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Spacing.md,
   },
-  pressed: { opacity: 0.7 },
-  dateBlock: { width: 54 },
+  pressed: { opacity: 0.72 },
+  dateBlock: { width: 58 },
   date: {
     color: Colors.textPrimary,
-    fontSize: FontSize.sm,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
   },
-  time: { color: Colors.textMuted, fontSize: FontSize.xs, marginTop: 3 },
+  time: {
+    color: Colors.textMuted,
+    fontFamily: FontFamily.data,
+    fontSize: 10,
+    marginTop: 4,
+  },
   titleBlock: { flex: 1, paddingRight: Spacing.sm },
   name: {
     color: Colors.textPrimary,
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.lg,
   },
-  summary: { color: Colors.textMuted, fontSize: FontSize.sm, marginTop: 4 },
-  statusBlock: { alignItems: 'flex-end' },
-  healthStatus: { color: Colors.textMuted, fontSize: FontSize.xs },
+  summary: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    marginTop: 5,
+  },
+  statusBlock: { alignItems: 'flex-end', gap: 7 },
+  healthStatus: { color: Colors.textMuted, fontSize: 9 },
   healthStatusSaved: { color: Colors.accent },
   disclosure: {
+    width: 26,
+    height: 26,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+    backgroundColor: Colors.bgElevated,
+  },
+  disclosureText: {
     color: Colors.textSecondary,
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.medium,
-    marginTop: 4,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.md,
+    lineHeight: 19,
   },
   details: { paddingBottom: Spacing.lg },
   metricStrip: {
+    minHeight: 80,
     flexDirection: 'row',
+    alignItems: 'stretch',
     paddingVertical: Spacing.md,
-    marginBottom: Spacing.sm,
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: Colors.border,
   },
-  metric: { flex: 1 },
+  metric: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metricDivider: {
+    width: 1,
+    backgroundColor: Colors.border,
+    marginVertical: 4,
+  },
   metricLabel: {
     color: Colors.textMuted,
-    fontSize: FontSize.xs,
-    letterSpacing: 0.5,
+    fontSize: 8,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 0.65,
     marginBottom: Spacing.xs,
+    textAlign: 'center',
   },
   metricValue: {
     color: Colors.textPrimary,
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
     fontVariant: ['tabular-nums'],
+    textAlign: 'center',
   },
   metricUnit: {
     color: Colors.textMuted,
-    fontSize: FontSize.xs,
+    fontSize: 9,
     fontWeight: FontWeight.regular,
   },
-  exerciseRow: { paddingVertical: Spacing.sm },
+  exerciseList: { paddingTop: Spacing.xs },
+  exerciseRow: {
+    minHeight: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  exerciseIndex: {
+    width: 30,
+    color: Colors.textMuted,
+    fontFamily: FontFamily.data,
+    fontSize: 9,
+  },
+  exerciseCopy: { flex: 1, paddingVertical: Spacing.sm },
   exerciseHeading: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: Spacing.md,
   },
   exerciseName: {
+    flex: 1,
     color: Colors.textPrimary,
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
   },
   exerciseVolume: {
     color: Colors.textSecondary,
-    fontSize: FontSize.sm,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.xs,
     fontVariant: ['tabular-nums'],
   },
   setDetails: {
     color: Colors.textMuted,
-    fontSize: FontSize.xs,
-    lineHeight: 18,
+    fontFamily: FontFamily.data,
+    fontSize: 10,
+    lineHeight: 17,
     marginTop: Spacing.xs,
   },
 });
