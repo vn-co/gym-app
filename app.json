@@ -9,14 +9,7 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.vlad.gymv1",
-      "entitlements": {
-        "com.apple.developer.healthkit": true
-      },
-      "infoPlist": {
-        "NSHealthShareUsageDescription": "Gym Tracker reads activity and heart-rate data to show your daily activity and live workout metrics.",
-        "NSHealthUpdateUsageDescription": "Gym Tracker saves completed strength workouts to Apple Health."
-      }
+      "bundleIdentifier": "com.vlad.gymv1"
     },
     "platforms": [
       "ios"
