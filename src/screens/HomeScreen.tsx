@@ -33,6 +33,7 @@ import {
 import type { WorkoutSession, Routine } from '../types';
 import { useWorkoutStore } from '../store/workoutStore';
 import { RoutineCard } from '../components/routines/RoutineCard';
+import { HealthKitProofPanel } from '../components/health/HealthKitProofPanel';
 
 const WEEK_DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
@@ -175,6 +176,8 @@ export function HomeScreen() {
           </View>
           <Text style={styles.arrow}>›</Text>
         </TouchableOpacity>
+
+        {__DEV__ ? <HealthKitProofPanel /> : null}
 
         {/* Routines quick-launch */}
         {routines.length > 0 && (
