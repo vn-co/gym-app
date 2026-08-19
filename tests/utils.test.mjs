@@ -57,3 +57,11 @@ test('moveItem reorders without mutating the saved sequence', () => {
   assert.deepEqual(original, ['bench', 'row', 'press']);
   assert.equal(utils.moveItem(original, 0, -1), original);
 });
+
+test('formats completion metrics consistently', () => {
+  assert.equal(utils.formatDuration(59), '00:59');
+  assert.equal(utils.formatDuration(3_661), '01:01:01');
+  assert.equal(utils.formatTimerDisplay(3_661), '01:01:01');
+  assert.equal(utils.formatWeight(1_250), '1.3k');
+  assert.equal(utils.formatWeight(Number.NaN), '0');
+});

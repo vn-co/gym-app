@@ -225,6 +225,27 @@ test('restores paused sessions without accumulating closed time', async () => {
   );
 });
 
+test('migrates a version-zero active session without losing workout data', async () => {
+  const memory = createMemoryStorage({
+    [STORAGE_KEYS.ACTIVE_SESSION]: JSON.stringify({
+      state: { session: validSession },
+      version: 0,
+    }),
+  });
+  const workout = createWorkoutStore(memory, {
+    onIssue: () => {},
+    onRecovered: () => {},
+  });
+
+  await workout.store.persist.rehydrate();
+
+  assert.equal(workout.store.getState().session.workoutName, 'Push');
+  assert.equal(
+    workout.store.getState().session.exercises[0].sets[0].weight,
+    60,
+  );
+});
+
 test('missing and corrupt storage both settle hydration safely', async () => {
   const missingIssues = [];
   const missing = createWorkoutStore(createMemoryStorage(), {

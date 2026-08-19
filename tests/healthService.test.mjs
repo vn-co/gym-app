@@ -7,6 +7,7 @@ import {
   normalizeTodayActivity,
   normalizeWorkoutState,
 } from '../src/health/normalizeHealthPayload.ts';
+import { toHealthServiceError } from '../src/health/healthErrors.ts';
 const assertInvalidNativePayload = (operation) => {
   assert.throws(
     operation,
@@ -36,6 +37,13 @@ test('rejects native-only operations with a stable unavailable code', async () =
     healthService.startWorkout('session-1', 1_000),
     (error) => error?.code === 'healthkit_unavailable',
   );
+});
+
+test('preserves denied Health permission as a stable service state', () => {
+  const denied = toHealthServiceError({ code: 'authorization_denied' });
+  assert.equal(denied.name, 'HealthServiceError');
+  assert.equal(denied.code, 'authorization_denied');
+  assert.match(denied.message, /Apple Health/);
 });
 
 test('preserves valid native activity values', () => {

@@ -6,7 +6,7 @@ import {
   type Exercise,
   type Routine,
 } from '../types';
-import { parseStoredArray } from './storageCodec';
+import { parseStoredArray, upsertWorkoutSession } from './storageCodec';
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
@@ -17,13 +17,8 @@ export async function getSessions(): Promise<WorkoutSession[]> {
 
 export async function saveSession(session: WorkoutSession): Promise<void> {
   const sessions = await getSessions();
-  const existing = sessions.findIndex((s) => s.id === session.id);
-  if (existing >= 0) {
-    sessions[existing] = session;
-  } else {
-    sessions.unshift(session);
-  }
-  await AsyncStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+  const updated = upsertWorkoutSession(sessions, session);
+  await AsyncStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(updated));
 }
 
 export async function deleteSession(sessionId: string): Promise<void> {

@@ -110,3 +110,22 @@ test('stores the Apple Health completion summary with local history', async () =
   assert.deepEqual(completed.health, healthSummary);
   assert.deepEqual(saved.health, healthSummary);
 });
+
+test('finishes locally when Apple Health saving fails', async () => {
+  let saved;
+  let cleared = false;
+  const completed = await finishActiveWorkout(active, 13_500, {
+    saveSession: async (session) => {
+      saved = session;
+    },
+    updatePersonalRecords: async () => {},
+    clearActiveSession: () => {
+      cleared = true;
+    },
+    healthSummary: { status: 'failed' },
+  });
+
+  assert.equal(saved.id, 'session_1');
+  assert.equal(completed.health.status, 'failed');
+  assert.equal(cleared, true);
+});

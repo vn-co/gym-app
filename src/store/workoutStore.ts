@@ -291,8 +291,9 @@ export function createWorkoutStore(
               ...current,
               ...parsePersistedWorkoutState(persisted),
             },
-      migrate: () => {
-        throw new Error('Unsupported active session version');
+      migrate: (persisted, version) => {
+        if (version === 0) return parsePersistedWorkoutState(persisted);
+        throw new Error(`Unsupported active session version: ${version}`);
       },
       onRehydrateStorage: () => (_state, error) => {
         if (error) callbacks.onIssue('read', error);

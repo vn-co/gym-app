@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWorkoutStore } from '../src/store/workoutStore.ts';
+import { finishActiveWorkout } from '../src/services/finishActiveWorkout.ts';
 
 function createMemoryStorage() {
   const data = new Map();
@@ -125,4 +126,41 @@ test('renames, replaces, and reorders an active workout without losing sets', ()
     weight: 80,
     reps: 5,
   });
+});
+
+test('completes the full local workout lifecycle exactly once', async () => {
+  const memory = createMemoryStorage();
+  const { store, flushPersistence } = createWorkoutStore(memory, {
+    onIssue: () => {},
+    onRecovered: () => {},
+  });
+  store.getState().startSession('Lifecycle');
+  store.getState().addExercise({
+    exerciseId: 'squat',
+    exerciseName: 'Squat',
+  });
+  const activeExercise = store.getState().session.exercises[0];
+  store.getState().updateSet(
+    activeExercise.id,
+    activeExercise.sets[0].id,
+    { weight: 100, reps: 5, completed: true },
+  );
+
+  const saved = [];
+  const completed = await finishActiveWorkout(
+    store.getState().session,
+    Date.now() + 1_000,
+    {
+      saveSession: async (session) => saved.push(session),
+      updatePersonalRecords: async () => {},
+      clearActiveSession: store.getState().cancelSession,
+      healthSummary: { status: 'unavailable' },
+    },
+  );
+  await flushPersistence();
+
+  assert.equal(completed.totalSets, 1);
+  assert.equal(completed.totalVolume, 500);
+  assert.equal(saved.length, 1);
+  assert.equal(store.getState().session, null);
 });
