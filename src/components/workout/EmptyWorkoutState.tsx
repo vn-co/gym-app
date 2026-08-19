@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Colors,
+  FontFamily,
   FontSize,
   FontWeight,
   Radius,
@@ -9,6 +10,7 @@ import {
   TabBarMetrics,
 } from '../../constants/tokens';
 import { AppIcon } from '../icons/AppIcon';
+import { AmbientBackdrop } from '../ui/AmbientBackdrop';
 
 interface EmptyWorkoutStateProps {
   onStart: () => void;
@@ -23,7 +25,12 @@ export function EmptyWorkoutState({ onStart }: EmptyWorkoutStateProps) {
 
   return (
     <View style={[styles.container, { paddingBottom: bottomInset }]}>
-      <Text style={styles.screenTitle}>Workout</Text>
+      <AmbientBackdrop intensity="hero" />
+
+      <View style={styles.header}>
+        <Text style={styles.headerLabel}>TRAINING</Text>
+        <Text style={styles.screenTitle}>Workout</Text>
+      </View>
 
       <View style={styles.content}>
         <View
@@ -37,17 +44,19 @@ export function EmptyWorkoutState({ onStart }: EmptyWorkoutStateProps) {
           <View style={styles.iconShell}>
             <AppIcon
               name="dumbbell"
-              size={58}
+              size={54}
               color={Colors.accent}
-              strokeWidth={1.5}
+              strokeWidth={1.45}
             />
           </View>
+          <View style={styles.signalDot} />
         </View>
 
-        <Text style={styles.headline}>Ready when you are</Text>
+        <Text style={styles.eyebrow}>READY FOR THE NEXT SET</Text>
+        <Text style={styles.headline}>Ready when you are.</Text>
         <Text style={styles.supportingCopy}>
-          Start an empty workout here, or launch one of your saved routines from
-          Routines.
+          Start an empty session, or open a saved routine and keep every set,
+          weight, and record in one place.
         </Text>
       </View>
 
@@ -60,7 +69,13 @@ export function EmptyWorkoutState({ onStart }: EmptyWorkoutStateProps) {
           pressed && styles.startButtonPressed,
         ]}
       >
-        <Text style={styles.startButtonText}>Start workout</Text>
+        <View style={styles.startCopy}>
+          <Text style={styles.startButtonText}>Start workout</Text>
+          <Text style={styles.startButtonDetail}>Name it, then add exercises</Text>
+        </View>
+        <View style={styles.startIcon}>
+          <AppIcon name="play" size={18} color={Colors.bg} strokeWidth={2.2} />
+        </View>
       </Pressable>
     </View>
   );
@@ -72,11 +87,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
   },
+  header: {
+    position: 'relative',
+    zIndex: 1,
+  },
+  headerLabel: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 1.2,
+  },
   screenTitle: {
     color: Colors.textPrimary,
-    fontSize: FontSize.xxxl,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -1,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.display,
+    lineHeight: 54,
+    letterSpacing: -1.5,
   },
   content: {
     flex: 1,
@@ -85,8 +111,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
   illustration: {
-    width: 164,
-    height: 138,
+    width: 184,
+    height: 166,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.xl,
@@ -94,63 +120,101 @@ const styles = StyleSheet.create({
   orbit: {
     position: 'absolute',
     borderRadius: Radius.full,
-    backgroundColor: Colors.bgCard,
     borderWidth: 1,
-    borderColor: Colors.border,
   },
   orbitLarge: {
-    width: 116,
-    height: 116,
-    left: 13,
-    top: 8,
+    width: 142,
+    height: 142,
+    left: 4,
+    top: 2,
+    borderColor: Colors.accentBorder,
+    backgroundColor: '#A5FF0108',
   },
   orbitSmall: {
-    width: 90,
-    height: 90,
-    right: 5,
-    bottom: 2,
-    backgroundColor: Colors.bgCardAlt,
+    width: 104,
+    height: 104,
+    right: 1,
+    bottom: 0,
+    borderColor: Colors.borderStrong,
+    backgroundColor: Colors.bgCard,
   },
   iconShell: {
-    width: 82,
-    height: 82,
+    width: 94,
+    height: 94,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.bg,
+    backgroundColor: Colors.bgElevated,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderStrong,
+  },
+  signalDot: {
+    position: 'absolute',
+    right: 25,
+    top: 29,
+    width: 11,
+    height: 11,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.accent,
+    borderWidth: 3,
+    borderColor: Colors.bg,
+  },
+  eyebrow: {
+    color: Colors.accent,
+    fontSize: 10,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 1.15,
+    marginBottom: Spacing.sm,
   },
   headline: {
     color: Colors.textPrimary,
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.5,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.xxxl,
+    letterSpacing: -0.8,
     textAlign: 'center',
     marginBottom: Spacing.sm,
   },
   supportingCopy: {
     color: Colors.textSecondary,
-    fontSize: FontSize.md,
-    lineHeight: 22,
+    fontSize: FontSize.sm,
+    lineHeight: 21,
     textAlign: 'center',
     maxWidth: 330,
   },
   startButton: {
     width: '100%',
-    height: 52,
+    minHeight: 64,
     borderRadius: Radius.lg,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingLeft: Spacing.lg,
+    paddingRight: 6,
     backgroundColor: Colors.accent,
   },
   startButtonPressed: {
     opacity: 0.82,
     transform: [{ scale: 0.99 }],
   },
+  startCopy: {
+    flex: 1,
+  },
   startButtonText: {
     color: Colors.bg,
-    fontSize: FontSize.lg,
+    fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
+  },
+  startButtonDetail: {
+    color: '#152000B8',
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  startIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#00000018',
   },
 });

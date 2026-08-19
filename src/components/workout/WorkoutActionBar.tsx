@@ -25,19 +25,27 @@ export function WorkoutActionBar({
         accessibilityRole="button"
         accessibilityLabel="Add exercise"
         onPress={onAddExercise}
-        style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          styles.addButton,
+          pressed && styles.pressed,
+        ]}
       >
-        <AppIcon name="add" size={22} color={Colors.accent} />
+        <AppIcon name="add" size={21} color={Colors.accent} />
       </Pressable>
 
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Finish workout"
         onPress={onFinish}
-        style={({ pressed }) => [styles.finishButton, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          styles.finishButton,
+          pressed && styles.pressed,
+        ]}
       >
-        <AppIcon name="check" size={20} color={Colors.bg} strokeWidth={2.2} />
         <Text style={styles.finishText}>Finish workout</Text>
+        <View style={styles.finishIcon}>
+          <AppIcon name="check" size={18} color={Colors.bg} strokeWidth={2.3} />
+        </View>
       </Pressable>
     </View>
   );
@@ -50,11 +58,20 @@ const styles = StyleSheet.create({
     right: Spacing.lg,
     zIndex: 10,
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: 6,
+    padding: 6,
+    borderRadius: Radius.xl,
+    backgroundColor: '#0E110FF2',
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+    shadowColor: '#000',
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
   },
   addButton: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     borderRadius: Radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -64,21 +81,30 @@ const styles = StyleSheet.create({
   },
   finishButton: {
     flex: 1,
-    height: 52,
+    height: 48,
     borderRadius: Radius.lg,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
+    justifyContent: 'space-between',
+    paddingLeft: Spacing.lg,
+    paddingRight: 5,
     backgroundColor: Colors.accent,
+  },
+  finishIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#00000018',
   },
   finishText: {
     color: Colors.bg,
-    fontSize: FontSize.lg,
+    fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
   },
   pressed: {
     opacity: 0.82,
-    transform: [{ scale: 0.98 }],
+    transform: [{ scale: 0.985 }],
   },
 });

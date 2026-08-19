@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import {
   Colors,
+  FontFamily,
   FontSize,
   FontWeight,
   MotionDuration,
@@ -24,6 +25,7 @@ import { AppIcon } from '../icons/AppIcon';
 interface Props {
   set: SetEntry;
   index: number;
+  isCurrent: boolean;
   onUpdate: (updates: Partial<SetEntry>) => void;
   onToggleComplete: () => void;
   onRemove: () => void;
@@ -33,6 +35,7 @@ interface Props {
 export function SetRow({
   set,
   index,
+  isCurrent,
   onUpdate,
   onToggleComplete,
   onRemove,
@@ -69,19 +72,31 @@ export function SetRow({
     }
   }, [checkScale, reduceMotion, rowTint, set.completed]);
 
+  const inputStyle = [
+    styles.input,
+    isCurrent && styles.inputCurrent,
+    set.completed && styles.inputComplete,
+  ];
+
   return (
-    <View style={styles.row}>
+    <View
+      style={[
+        styles.row,
+        isCurrent && styles.rowCurrent,
+        set.completed && styles.rowComplete,
+      ]}
+    >
       <Animated.View
         pointerEvents="none"
         style={[styles.rowTint, { opacity: rowTint }]}
       />
 
-      <Text style={[styles.setNum, set.completed && styles.setNumActive]}>
+      <Text style={[styles.setNum, isCurrent && styles.setNumCurrent]}>
         {index + 1}
       </Text>
 
       <TextInput
-        style={styles.input}
+        style={inputStyle}
         accessibilityLabel={`Weight for set ${index + 1} in kilograms`}
         value={set.weight === 0 ? '' : String(set.weight)}
         onChangeText={(text) =>
@@ -95,7 +110,7 @@ export function SetRow({
       />
 
       <TextInput
-        style={styles.input}
+        style={inputStyle}
         accessibilityLabel={`Repetitions for set ${index + 1}`}
         value={set.reps === 0 ? '' : String(set.reps)}
         onChangeText={(text) =>
@@ -121,7 +136,7 @@ export function SetRow({
             transform: [{ scale: checkScale }],
           }}
         >
-          <AppIcon name="check" size={19} color={Colors.bg} strokeWidth={2.4} />
+          <AppIcon name="check" size={18} color={Colors.bg} strokeWidth={2.4} />
         </Animated.View>
       </Pressable>
 
@@ -149,73 +164,93 @@ export function SetRow({
 
 const styles = StyleSheet.create({
   row: {
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 52,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.xs,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
     overflow: 'hidden',
+  },
+  rowCurrent: {
+    borderBottomColor: Colors.accentBorder,
+  },
+  rowComplete: {
+    opacity: 0.78,
   },
   rowTint: {
     position: 'absolute',
-    top: 0,
+    top: 4,
     right: 0,
-    bottom: 0,
+    bottom: 4,
     left: 0,
-    backgroundColor: Colors.accentBg,
     borderRadius: Radius.md,
+    backgroundColor: Colors.accentBg,
   },
   setNum: {
     width: 32,
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.medium,
     color: Colors.textMuted,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.sm,
     textAlign: 'center',
   },
-  setNumActive: {
+  setNumCurrent: {
     color: Colors.accent,
+    fontWeight: FontWeight.bold,
   },
   input: {
     flex: 1,
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
-    textAlign: 'center',
-    fontVariant: ['tabular-nums'],
-    paddingVertical: 0,
-    backgroundColor: Colors.bgCardAlt,
-    borderRadius: Radius.md,
-    marginHorizontal: Spacing.xs,
     height: 44,
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+    fontVariant: ['tabular-nums'],
+    textAlign: 'center',
+    paddingVertical: 0,
+    marginHorizontal: Spacing.xs,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.bgElevated,
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  inputCurrent: {
+    backgroundColor: Colors.bgInput,
+    borderColor: Colors.accentBorder,
+  },
+  inputComplete: {
+    color: Colors.textSecondary,
+    backgroundColor: Colors.bgElevated,
+    borderColor: 'transparent',
+  },
   checkbox: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.bgCardAlt,
+    width: 42,
+    height: 42,
+    borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: Spacing.xs,
+    backgroundColor: Colors.bgElevated,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderStrong,
   },
   checkboxDone: {
     backgroundColor: Colors.accent,
     borderColor: Colors.accent,
   },
   removeButton: {
-    width: 32,
+    width: 34,
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
   removeButtonText: {
-    color: Colors.danger,
+    color: Colors.textMuted,
     fontSize: FontSize.xl,
-    fontWeight: FontWeight.medium,
+    fontWeight: FontWeight.regular,
   },
-  removeButtonTextDisabled: { color: Colors.textMuted },
+  removeButtonTextDisabled: {
+    opacity: 0.25,
+  },
 });

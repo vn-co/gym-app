@@ -16,6 +16,7 @@ import {
 } from 'react-native-safe-area-context';
 import {
   Colors,
+  FontFamily,
   FontSize,
   FontWeight,
   MotionDuration,
@@ -52,6 +53,7 @@ import type {
 } from '../health/types';
 import type { WorkoutHealthSummary } from '../types';
 import { WorkoutCompleteView } from '../components/workout/WorkoutCompleteView';
+import { AmbientBackdrop } from '../components/ui/AmbientBackdrop';
 import {
   findNewPersonalRecords,
   findPreviousComparableWorkout,
@@ -511,6 +513,7 @@ export function WorkoutScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <AmbientBackdrop intensity="hero" />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
@@ -538,11 +541,11 @@ export function WorkoutScreen() {
 
         {activeExercise ? (
           <>
-            <Text style={styles.sectionLabel}>ACTIVE EXERCISE</Text>
-          <ExerciseCard
+            <Text style={styles.sectionLabel}>CURRENT EXERCISE</Text>
+            <ExerciseCard
               exercise={activeExercise}
               onOpenMenu={() => openExerciseMenu(activeExercise.id)}
-          />
+            />
           </>
         ) : null}
 
@@ -585,9 +588,11 @@ export function WorkoutScreen() {
           </View>
         ) : null}
 
-        {/* Cancel */}
-        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelWorkout}>
-          <Text style={styles.cancelBtnText}>Cancel Workout</Text>
+        <TouchableOpacity
+          style={styles.cancelBtn}
+          onPress={handleCancelWorkout}
+        >
+          <Text style={styles.cancelBtnText}>Cancel workout</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -612,7 +617,10 @@ export function WorkoutScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
   scroll: { flex: 1 },
-  content: { padding: Spacing.lg },
+  content: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+  },
 
   firstExercisePrompt: {
     backgroundColor: Colors.bgCard,
@@ -620,17 +628,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     padding: Spacing.xl,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.xl,
   },
   firstExerciseTitle: {
     color: Colors.textPrimary,
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.xl,
     marginBottom: Spacing.xs,
   },
   firstExerciseCopy: {
     color: Colors.textSecondary,
-    fontSize: FontSize.md,
+    fontSize: FontSize.sm,
     lineHeight: 21,
   },
 
@@ -638,14 +646,15 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
-    letterSpacing: 0.9,
-    marginBottom: Spacing.xs,
+    letterSpacing: 1.1,
+    marginBottom: Spacing.sm,
   },
   upcomingSection: {
-    marginBottom: Spacing.xl,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xxl,
   },
   upcomingRow: {
-    minHeight: 68,
+    minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1,
@@ -655,10 +664,12 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: Radius.full,
-    backgroundColor: Colors.bgCardAlt,
+    backgroundColor: Colors.bgElevated,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   upcomingIndexText: {
     color: Colors.textMuted,
@@ -674,7 +685,7 @@ const styles = StyleSheet.create({
   },
   upcomingMeta: {
     color: Colors.textMuted,
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
   },
   upcomingAction: {
     color: Colors.accent,
@@ -683,8 +694,11 @@ const styles = StyleSheet.create({
   },
 
   cancelBtn: {
-    paddingVertical: Spacing.md,
+    minHeight: 48,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
   },
   cancelBtnText: {
     fontSize: FontSize.sm,
@@ -717,9 +731,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   modalTitle: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
     color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.xxl,
+    letterSpacing: -0.5,
     marginBottom: Spacing.lg,
   },
   modalInput: {
