@@ -84,6 +84,15 @@ export function LineChart({ data, width, height = 140 }: Props) {
       <Path
         d={pathD}
         stroke={Colors.chartLine}
+        strokeWidth={11}
+        strokeOpacity={0.08}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d={pathD}
+        stroke={Colors.chartLine}
         strokeWidth={2.5}
         fill="none"
         strokeLinecap="round"

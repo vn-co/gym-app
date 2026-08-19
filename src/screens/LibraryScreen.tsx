@@ -1,54 +1,77 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  SectionList,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Modal,
   Alert,
-  ScrollView,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
+  ScrollView,
+  SectionList,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, FontSize, FontWeight, Spacing, Radius } from '../constants/tokens';
+import {
+  Colors,
+  FontFamily,
+  FontSize,
+  FontWeight,
+  Radius,
+  Spacing,
+} from '../constants/tokens';
 import {
   mergeExerciseLibrary,
   MUSCLE_GROUP_LABELS,
 } from '../constants/exercises';
-import { getCustomExercises, saveCustomExercise, deleteCustomExercise } from '../services/storage';
+import {
+  deleteCustomExercise,
+  getCustomExercises,
+  saveCustomExercise,
+} from '../services/storage';
 import { generateId } from '../utils';
+import { AmbientBackdrop } from '../components/ui/AmbientBackdrop';
 import type { Exercise, MuscleGroup } from '../types';
 
 interface SectionData {
   title: string;
-  isCustomSection?: boolean;
   data: Exercise[];
 }
 
 const MUSCLE_GROUPS: MuscleGroup[] = [
-  'chest', 'back', 'shoulders', 'biceps', 'triceps',
-  'legs', 'glutes', 'core', 'calves', 'forearms', 'full_body',
+  'chest',
+  'back',
+  'shoulders',
+  'biceps',
+  'triceps',
+  'legs',
+  'glutes',
+  'core',
+  'calves',
+  'forearms',
+  'full_body',
 ];
-
-const MUSCLE_EMOJIS: Record<string, string> = {
-  chest: '💪', back: '🏋️', shoulders: '🦺', biceps: '💪',
-  triceps: '💪', legs: '🦵', glutes: '🍑', core: '🎯',
-  calves: '🦵', forearms: '💪', full_body: '⚡',
-};
 
 const EQUIPMENT_OPTIONS = [
-  'Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight', 'Kettlebell', 'Bands', 'Other',
+  'Barbell',
+  'Dumbbell',
+  'Cable',
+  'Machine',
+  'Bodyweight',
+  'Kettlebell',
+  'Bands',
+  'Other',
 ];
+
+function groupCode(group: MuscleGroup): string {
+  return MUSCLE_GROUP_LABELS[group].replace(/\s/g, '').slice(0, 3).toUpperCase();
+}
 
 export function LibraryScreen() {
   const [query, setQuery] = useState('');
   const [customExercises, setCustomExercises] = useState<Exercise[]>([]);
-
-  // Create exercise modal state
   const [createVisible, setCreateVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [newGroup, setNewGroup] = useState<MuscleGroup>('chest');
@@ -56,8 +79,7 @@ export function LibraryScreen() {
 
   const loadCustom = useCallback(async () => {
     try {
-      const custom = await getCustomExercises();
-      setCustomExercises(custom);
+      setCustomExercises(await getCustomExercises());
     } catch {
       Alert.alert(
         'Couldn’t load saved data',
@@ -66,7 +88,11 @@ export function LibraryScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { loadCustom(); }, [loadCustom]));
+  useFocusEffect(
+    useCallback(() => {
+      loadCustom();
+    }, [loadCustom]),
+  );
 
   const allExercises = useMemo(
     () => mergeExerciseLibrary(customExercises),
@@ -74,42 +100,51 @@ export function LibraryScreen() {
   );
 
   const sections = useMemo<SectionData[]>(() => {
-    const filtered = allExercises.filter((e) =>
-      e.name.toLowerCase().includes(query.toLowerCase()) ||
-      e.muscleGroup.toLowerCase().includes(query.toLowerCase()),
+    const normalizedQuery = query.trim().toLowerCase();
+    const filtered = allExercises.filter(
+      (exercise) =>
+        exercise.name.toLowerCase().includes(normalizedQuery) ||
+        exercise.muscleGroup.toLowerCase().includes(normalizedQuery) ||
+        exercise.equipment.toLowerCase().includes(normalizedQuery),
     );
 
     const grouped: Record<string, Exercise[]> = {};
-    for (const ex of filtered) {
-      if (!grouped[ex.muscleGroup]) grouped[ex.muscleGroup] = [];
-      grouped[ex.muscleGroup].push(ex);
+    for (const exercise of filtered) {
+      if (!grouped[exercise.muscleGroup]) grouped[exercise.muscleGroup] = [];
+      grouped[exercise.muscleGroup].push(exercise);
     }
 
     return Object.entries(grouped)
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([first], [second]) => first.localeCompare(second))
       .map(([group, exercises]) => ({
         title: MUSCLE_GROUP_LABELS[group] ?? group,
         data: exercises,
       }));
   }, [allExercises, query]);
 
+  const closeCreate = () => {
+    setCreateVisible(false);
+    setNewName('');
+    setNewGroup('chest');
+    setNewEquipment('Barbell');
+  };
+
   const handleCreateExercise = async () => {
     if (!newName.trim()) {
       Alert.alert('Name required', 'Enter a name for the exercise.');
       return;
     }
+
     const exercise: Exercise = {
       id: `custom_${generateId()}`,
       name: newName.trim(),
       muscleGroup: newGroup,
       equipment: newEquipment,
     };
+
     try {
       await saveCustomExercise(exercise);
-      setCreateVisible(false);
-      setNewName('');
-      setNewGroup('chest');
-      setNewEquipment('Barbell');
+      closeCreate();
       await loadCustom();
     } catch {
       Alert.alert(
@@ -119,9 +154,9 @@ export function LibraryScreen() {
     }
   };
 
-  const handleDeleteCustom = (ex: Exercise) => {
+  const handleDeleteCustom = (exercise: Exercise) => {
     Alert.alert(
-      `Delete "${ex.name}"?`,
+      `Delete "${exercise.name}"?`,
       'This removes it from your custom exercises.',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -130,7 +165,7 @@ export function LibraryScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteCustomExercise(ex.id);
+              await deleteCustomExercise(exercise.id);
               await loadCustom();
             } catch {
               Alert.alert(
@@ -144,31 +179,39 @@ export function LibraryScreen() {
     );
   };
 
-  const isCustom = (ex: Exercise) => ex.id.startsWith('custom_');
+  const isCustom = (exercise: Exercise) =>
+    exercise.id.startsWith('custom_');
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Header */}
+      <AmbientBackdrop intensity="quiet" />
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Library</Text>
-          <Text style={styles.subtitle}>{allExercises.length} exercises</Text>
+        <View style={styles.heading}>
+          <Text style={styles.eyebrow}>EXERCISE LIBRARY</Text>
+          <Text style={styles.title}>Movement index</Text>
+          <Text style={styles.subtitle}>{allExercises.length} movements</Text>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setCreateVisible(true)}>
-          <Text style={styles.addBtnText}>+ Custom</Text>
-        </TouchableOpacity>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Create custom exercise"
+          style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
+          onPress={() => setCreateVisible(true)}
+        >
+          <Text style={styles.addButtonMark}>+</Text>
+          <Text style={styles.addButtonText}>Custom</Text>
+        </Pressable>
       </View>
 
-      {/* Search */}
-      <View style={styles.searchContainer}>
-        <Text style={styles.searchIcon}>🔍</Text>
+      <View style={styles.searchBlock}>
+        <Text style={styles.searchLabel}>SEARCH</Text>
         <TextInput
-          style={styles.search}
+          style={styles.searchInput}
           value={query}
           onChangeText={setQuery}
-          placeholder="Search exercises..."
+          placeholder="Exercise, muscle, or equipment"
           placeholderTextColor={Colors.textMuted}
           clearButtonMode="while-editing"
+          returnKeyType="search"
         />
       </View>
 
@@ -178,67 +221,92 @@ export function LibraryScreen() {
         contentContainerStyle={styles.list}
         stickySectionHeadersEnabled={false}
         renderSectionHeader={({ section }) => (
-          <Text style={styles.sectionHeader}>{section.title}</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{section.title}</Text>
+            <Text style={styles.sectionCount}>{section.data.length}</Text>
+          </View>
         )}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const custom = isCustom(item);
           return (
-            <View style={[styles.exerciseRow, custom && styles.exerciseRowCustom]}>
-              <View style={styles.exerciseLeft}>
-                <Text style={styles.exerciseEmoji}>
-                  {MUSCLE_EMOJIS[item.muscleGroup] ?? '💪'}
+            <View style={styles.exerciseRow}>
+              <View
+                style={[
+                  styles.exerciseCode,
+                  custom && styles.exerciseCodeCustom,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.exerciseCodeText,
+                    custom && styles.exerciseCodeTextCustom,
+                  ]}
+                >
+                  {custom ? 'CST' : groupCode(item.muscleGroup)}
                 </Text>
-                <View style={styles.exerciseInfo}>
-                  <View style={styles.exerciseNameRow}>
-                    <Text style={styles.exerciseName}>{item.name}</Text>
-                    {custom && (
-                      <View style={styles.customBadge}>
-                        <Text style={styles.customBadgeText}>CUSTOM</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.exerciseMeta}>{item.equipment}</Text>
-                </View>
               </View>
-              <View style={styles.exerciseRight}>
-                <View style={styles.muscleTag}>
-                  <Text style={styles.muscleTagText}>
-                    {MUSCLE_GROUP_LABELS[item.muscleGroup]}
-                  </Text>
+              <View style={styles.exerciseInfo}>
+                <View style={styles.exerciseNameRow}>
+                  <Text style={styles.exerciseName}>{item.name}</Text>
+                  {custom ? <Text style={styles.customLabel}>CUSTOM</Text> : null}
                 </View>
-                {custom && (
-                  <TouchableOpacity
-                    onPress={() => handleDeleteCustom(item)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    style={styles.deleteBtn}
-                  >
-                    <Text style={styles.deleteBtnText}>✕</Text>
-                  </TouchableOpacity>
-                )}
+                <Text style={styles.exerciseMeta}>
+                  {item.equipment} · {MUSCLE_GROUP_LABELS[item.muscleGroup]}
+                </Text>
               </View>
+              {custom ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Delete ${item.name}`}
+                  hitSlop={8}
+                  style={({ pressed }) => [
+                    styles.deleteButton,
+                    pressed && styles.pressed,
+                  ]}
+                  onPress={() => handleDeleteCustom(item)}
+                >
+                  <Text style={styles.deleteText}>Remove</Text>
+                </Pressable>
+              ) : (
+                <Text style={styles.exerciseNumber}>
+                  {String(index + 1).padStart(2, '0')}
+                </Text>
+              )}
             </View>
           );
         }}
-        ItemSeparatorComponent={() => <View style={styles.sep} />}
-        renderSectionFooter={() => <View style={{ height: Spacing.md }} />}
+        renderSectionFooter={() => <View style={styles.sectionGap} />}
+        ListEmptyComponent={
+          <View style={styles.emptySearch}>
+            <Text style={styles.emptySearchCode}>—</Text>
+            <Text style={styles.emptySearchTitle}>No matching movement</Text>
+            <Text style={styles.emptySearchText}>
+              Try a different exercise, muscle group, or equipment name.
+            </Text>
+          </View>
+        }
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Create Custom Exercise Modal */}
-      <Modal visible={createVisible} animationType="slide" presentationStyle="pageSheet">
+      <Modal
+        visible={createVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
         <SafeAreaView style={styles.modalSafe}>
+          <AmbientBackdrop intensity="quiet" />
           <KeyboardAvoidingView
-            style={{ flex: 1 }}
+            style={styles.keyboard}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
             <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => { setCreateVisible(false); setNewName(''); }}>
+              <Pressable onPress={closeCreate}>
                 <Text style={styles.modalCancel}>Cancel</Text>
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>New Exercise</Text>
-              <TouchableOpacity onPress={handleCreateExercise}>
+              </Pressable>
+              <Text style={styles.modalTitle}>New exercise</Text>
+              <Pressable onPress={handleCreateExercise}>
                 <Text style={styles.modalSave}>Add</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <ScrollView
@@ -246,66 +314,83 @@ export function LibraryScreen() {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              {/* Name */}
               <Text style={styles.fieldLabel}>EXERCISE NAME</Text>
               <TextInput
                 style={styles.nameInput}
                 value={newName}
                 onChangeText={setNewName}
-                placeholder="e.g. Bulgarian Split Squat"
+                placeholder="Bulgarian split squat"
                 placeholderTextColor={Colors.textMuted}
                 autoFocus
                 maxLength={60}
               />
 
-              {/* Muscle Group */}
               <Text style={styles.fieldLabel}>MUSCLE GROUP</Text>
               <View style={styles.optionGrid}>
-                {MUSCLE_GROUPS.map((group) => (
-                  <TouchableOpacity
-                    key={group}
-                    style={[styles.optionChip, newGroup === group && styles.optionChipActive]}
-                    onPress={() => setNewGroup(group)}
-                  >
-                    <Text style={styles.optionChipEmoji}>{MUSCLE_EMOJIS[group]}</Text>
-                    <Text style={[styles.optionChipText, newGroup === group && styles.optionChipTextActive]}>
-                      {MUSCLE_GROUP_LABELS[group]}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Equipment */}
-              <Text style={styles.fieldLabel}>EQUIPMENT</Text>
-              <View style={styles.optionRow}>
-                {EQUIPMENT_OPTIONS.map((eq) => (
-                  <TouchableOpacity
-                    key={eq}
-                    style={[styles.eqChip, newEquipment === eq && styles.eqChipActive]}
-                    onPress={() => setNewEquipment(eq)}
-                  >
-                    <Text style={[styles.eqChipText, newEquipment === eq && styles.eqChipTextActive]}>
-                      {eq}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Preview */}
-              {newName.trim().length > 0 && (
-                <View style={styles.preview}>
-                  <Text style={styles.previewLabel}>PREVIEW</Text>
-                  <View style={styles.previewRow}>
-                    <Text style={styles.previewEmoji}>{MUSCLE_EMOJIS[newGroup]}</Text>
-                    <View>
-                      <Text style={styles.previewName}>{newName.trim()}</Text>
-                      <Text style={styles.previewMeta}>
-                        {MUSCLE_GROUP_LABELS[newGroup]} · {newEquipment}
+                {MUSCLE_GROUPS.map((group) => {
+                  const selected = newGroup === group;
+                  return (
+                    <Pressable
+                      key={group}
+                      style={[
+                        styles.optionChip,
+                        selected && styles.optionChipActive,
+                      ]}
+                      onPress={() => setNewGroup(group)}
+                    >
+                      <Text
+                        style={[
+                          styles.optionChipText,
+                          selected && styles.optionChipTextActive,
+                        ]}
+                      >
+                        {MUSCLE_GROUP_LABELS[group]}
                       </Text>
-                    </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.fieldLabel}>EQUIPMENT</Text>
+              <View style={styles.optionGrid}>
+                {EQUIPMENT_OPTIONS.map((equipment) => {
+                  const selected = newEquipment === equipment;
+                  return (
+                    <Pressable
+                      key={equipment}
+                      style={[
+                        styles.optionChip,
+                        selected && styles.optionChipActive,
+                      ]}
+                      onPress={() => setNewEquipment(equipment)}
+                    >
+                      <Text
+                        style={[
+                          styles.optionChipText,
+                          selected && styles.optionChipTextActive,
+                        ]}
+                      >
+                        {equipment}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {newName.trim() ? (
+                <View style={styles.preview}>
+                  <View style={styles.previewCode}>
+                    <Text style={styles.previewCodeText}>CST</Text>
+                  </View>
+                  <View style={styles.previewCopy}>
+                    <Text style={styles.previewLabel}>PREVIEW</Text>
+                    <Text style={styles.previewName}>{newName.trim()}</Text>
+                    <Text style={styles.previewMeta}>
+                      {MUSCLE_GROUP_LABELS[newGroup]} · {newEquipment}
+                    </Text>
                   </View>
                 </View>
-              )}
+              ) : null}
             </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
@@ -316,180 +401,283 @@ export function LibraryScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
-
   header: {
     flexDirection: 'row',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.sm,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.lg,
   },
-  title: { fontSize: FontSize.xxl, fontWeight: FontWeight.heavy, color: Colors.textPrimary },
-  subtitle: { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: 2 },
-  addBtn: {
-    backgroundColor: Colors.accentBg,
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.accent,
-  },
-  addBtnText: { fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: Colors.accent },
-
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  searchIcon: { fontSize: FontSize.md, marginRight: Spacing.sm },
-  search: { flex: 1, paddingVertical: Spacing.md, fontSize: FontSize.md, color: Colors.textPrimary },
-
-  list: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
-  sectionHeader: {
+  heading: { flex: 1, paddingRight: Spacing.lg },
+  eyebrow: {
+    color: Colors.accent,
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
+    letterSpacing: 1.1,
+    marginBottom: Spacing.xs,
+  },
+  title: {
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: 36,
+    letterSpacing: -1,
+  },
+  subtitle: {
     color: Colors.textMuted,
-    letterSpacing: 0.8,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.sm,
-    textTransform: 'uppercase',
+    fontSize: FontSize.sm,
+    marginTop: Spacing.xs,
   },
-
-  exerciseRow: {
+  addButton: {
+    minWidth: 98,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.bgCard,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.sm,
+    justifyContent: 'center',
+    gap: 7,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.accent,
   },
-  exerciseRowCustom: {
-    borderLeftWidth: 2,
-    borderLeftColor: Colors.accent,
+  addButtonMark: {
+    color: Colors.bg,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.lg,
   },
-  exerciseLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, flex: 1 },
-  exerciseEmoji: { fontSize: FontSize.xl, width: 32, textAlign: 'center' },
-  exerciseInfo: { flex: 1 },
-  exerciseNameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  exerciseName: { fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: Colors.textPrimary },
-  customBadge: {
-    backgroundColor: Colors.accentBg,
-    borderRadius: Radius.sm,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: Colors.accent,
+  addButtonText: {
+    color: Colors.bg,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
   },
-  customBadgeText: { fontSize: 9, color: Colors.accent, fontWeight: FontWeight.bold, letterSpacing: 0.5 },
-  exerciseMeta: { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: 2 },
-  exerciseRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  muscleTag: {
-    backgroundColor: Colors.bgCardAlt,
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  muscleTagText: { fontSize: FontSize.xs, color: Colors.textSecondary, fontWeight: FontWeight.medium },
-  deleteBtn: { padding: 4 },
-  deleteBtnText: { fontSize: FontSize.sm, color: Colors.danger },
-  sep: { height: 1, backgroundColor: Colors.border },
-
-  // Modal
-  modalSafe: { flex: 1, backgroundColor: Colors.bg },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  searchBlock: {
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  searchLabel: {
+    color: Colors.textMuted,
+    fontSize: 9,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 0.8,
+    marginBottom: Spacing.xs,
+  },
+  searchInput: {
+    minHeight: 52,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+    color: Colors.textPrimary,
+    fontSize: FontSize.md,
+    paddingHorizontal: Spacing.md,
+  },
+  list: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: 112,
+  },
+  sectionHeader: {
+    minHeight: 50,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderStrong,
+  },
+  sectionTitle: {
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.lg,
+  },
+  sectionCount: {
+    color: Colors.textMuted,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.xs,
+  },
+  exerciseRow: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  modalTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.textPrimary },
-  modalCancel: { fontSize: FontSize.md, color: Colors.textMuted },
-  modalSave: { fontSize: FontSize.md, color: Colors.accent, fontWeight: FontWeight.bold },
-  modalBody: { padding: Spacing.lg, paddingBottom: 60 },
-
-  fieldLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textMuted,
-    letterSpacing: 0.8,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.lg,
-  },
-  nameInput: {
-    backgroundColor: Colors.bgCard,
+  exerciseCode: {
+    width: 40,
+    height: 40,
     borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    fontSize: FontSize.lg,
-    color: Colors.textPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.bgCard,
     borderWidth: 1,
     borderColor: Colors.border,
+    marginRight: Spacing.md,
+  },
+  exerciseCodeCustom: {
+    backgroundColor: Colors.accentBg,
+    borderColor: Colors.accentBorder,
+  },
+  exerciseCodeText: {
+    color: Colors.textMuted,
+    fontFamily: FontFamily.data,
+    fontSize: 8,
     fontWeight: FontWeight.semibold,
   },
-
-  optionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
+  exerciseCodeTextCustom: { color: Colors.accent },
+  exerciseInfo: { flex: 1, paddingRight: Spacing.sm },
+  exerciseNameRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  exerciseName: {
+    flexShrink: 1,
+    color: Colors.textPrimary,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
   },
-  optionChip: {
+  customLabel: {
+    color: Colors.accent,
+    fontSize: 8,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.5,
+  },
+  exerciseMeta: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    marginTop: 4,
+  },
+  exerciseNumber: {
+    color: Colors.textMuted,
+    fontFamily: FontFamily.data,
+    fontSize: 9,
+  },
+  deleteButton: { minHeight: 44, justifyContent: 'center' },
+  deleteText: { color: Colors.danger, fontSize: FontSize.xs },
+  sectionGap: { height: Spacing.md },
+  emptySearch: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: Spacing.xxl,
+    marginTop: Spacing.xl,
+  },
+  emptySearchCode: {
+    color: Colors.accent,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.lg,
+  },
+  emptySearchTitle: {
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.xl,
+    marginTop: Spacing.md,
+  },
+  emptySearchText: {
+    color: Colors.textMuted,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginTop: Spacing.sm,
+  },
+  modalSafe: { flex: 1, backgroundColor: Colors.bg },
+  keyboard: { flex: 1 },
+  modalHeader: {
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.bgCard,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    paddingHorizontal: Spacing.lg,
   },
-  optionChipActive: { backgroundColor: Colors.accentBg, borderColor: Colors.accent },
-  optionChipEmoji: { fontSize: 14 },
-  optionChipText: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: FontWeight.medium },
-  optionChipTextActive: { color: Colors.accent, fontWeight: FontWeight.bold },
-
-  optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  eqChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.bgCard,
-    borderWidth: 1,
-    borderColor: Colors.border,
+  modalCancel: { color: Colors.textMuted, fontSize: FontSize.md },
+  modalTitle: {
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.xl,
   },
-  eqChipActive: { backgroundColor: Colors.accentBg, borderColor: Colors.accent },
-  eqChipText: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: FontWeight.medium },
-  eqChipTextActive: { color: Colors.accent, fontWeight: FontWeight.bold },
-
-  preview: {
-    marginTop: Spacing.xl,
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
+  modalSave: {
+    color: Colors.accent,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
   },
-  previewLabel: {
-    fontSize: FontSize.xs,
+  modalBody: { padding: Spacing.lg, paddingBottom: 60 },
+  fieldLabel: {
     color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
     letterSpacing: 0.8,
-    marginBottom: Spacing.md,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
   },
-  previewRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  previewEmoji: { fontSize: 28 },
-  previewName: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.textPrimary },
-  previewMeta: { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: 2 },
+  nameInput: {
+    minHeight: 58,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.xl,
+    paddingHorizontal: Spacing.md,
+  },
+  optionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  optionChip: {
+    minHeight: 38,
+    justifyContent: 'center',
+    borderRadius: Radius.full,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+  },
+  optionChipActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  optionChipText: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
+  },
+  optionChipTextActive: { color: Colors.bg, fontWeight: FontWeight.bold },
+  preview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: Radius.xl,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+    padding: Spacing.lg,
+    marginTop: Spacing.xxl,
+  },
+  previewCode: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.accentBg,
+    borderWidth: 1,
+    borderColor: Colors.accentBorder,
+    marginRight: Spacing.md,
+  },
+  previewCodeText: {
+    color: Colors.accent,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
+  previewCopy: { flex: 1 },
+  previewLabel: {
+    color: Colors.textMuted,
+    fontSize: 9,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 0.7,
+  },
+  previewName: {
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.lg,
+    marginTop: 3,
+  },
+  previewMeta: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    marginTop: 3,
+  },
+  pressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
 });

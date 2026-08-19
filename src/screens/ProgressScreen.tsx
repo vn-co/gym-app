@@ -1,50 +1,55 @@
 import { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  useWindowDimensions,
-  RefreshControl,
   Alert,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Colors,
+  FontFamily,
   FontSize,
   FontWeight,
-  Spacing,
   Radius,
+  Spacing,
 } from '../constants/tokens';
-import { getSessions, getPersonalRecords } from '../services/storage';
-import { buildProgressData, formatWeight, formatShortDate } from '../utils';
+import { getPersonalRecords, getSessions } from '../services/storage';
+import { buildProgressData, formatShortDate, formatWeight } from '../utils';
 import { LineChart } from '../components/ui/LineChart';
-import type { WorkoutSession, PersonalRecord, ProgressRange } from '../types';
+import { AmbientBackdrop } from '../components/ui/AmbientBackdrop';
+import type { PersonalRecord, ProgressRange, WorkoutSession } from '../types';
 import { WorkoutHistoryItem } from '../components/progress/WorkoutHistoryItem';
 import { buildPersonalRecordHistory } from '../utils/workoutHistory';
 
 const RANGES: { label: string; value: ProgressRange }[] = [
-  { label: '7 Days', value: '7d' },
-  { label: '1 Month', value: '1m' },
-  { label: '1 Year', value: '1y' },
+  { label: '7 days', value: '7d' },
+  { label: '1 month', value: '1m' },
+  { label: '1 year', value: '1y' },
 ];
 
 export function ProgressScreen() {
   const { width } = useWindowDimensions();
-  const chartWidth = width - Spacing.lg * 2 - Spacing.lg * 2; // card padding
+  const chartWidth = width - Spacing.lg * 4;
 
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
-  const [prs, setPrs] = useState<PersonalRecord[]>([]);
+  const [records, setRecords] = useState<PersonalRecord[]>([]);
   const [range, setRange] = useState<ProgressRange>('7d');
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [s, p] = await Promise.all([getSessions(), getPersonalRecords()]);
-      setSessions(s);
-      setPrs(p);
+      const [savedSessions, savedRecords] = await Promise.all([
+        getSessions(),
+        getPersonalRecords(),
+      ]);
+      setSessions(savedSessions);
+      setRecords(savedRecords);
     } catch {
       Alert.alert(
         'Couldn’t load saved data',
@@ -70,11 +75,12 @@ export function ProgressScreen() {
 
   const { points, stats } = buildProgressData(sessions, range);
   const hasData = points.some((point) => point.volume > 0);
-
-  const prHistory = buildPersonalRecordHistory(sessions);
+  const recordHistory = buildPersonalRecordHistory(sessions);
+  const changeLabel = `${stats.percentChange >= 0 ? '+' : ''}${stats.percentChange}%`;
 
   return (
     <SafeAreaView style={styles.safe}>
+      <AmbientBackdrop intensity="quiet" />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -87,103 +93,105 @@ export function ProgressScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <Text style={styles.eyebrow}>ANALYTICS</Text>
-        <Text style={styles.title}>Your Progress</Text>
-
-        {/* Range selector */}
-        <View style={styles.rangePicker}>
-          {RANGES.map((r) => (
-            <TouchableOpacity
-              key={r.value}
-              style={[
-                styles.rangeBtn,
-                range === r.value && styles.rangeBtnActive,
-              ]}
-              onPress={() => setRange(r.value)}
-            >
-              <Text
-                style={[
-                  styles.rangeBtnText,
-                  range === r.value && styles.rangeBtnTextActive,
-                ]}
-              >
-                {r.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.hero}>
+          <Text style={styles.eyebrow}>PROGRESS</Text>
+          <Text style={styles.title}>Built over time</Text>
+          <Text style={styles.subtitle}>
+            Volume, completed sessions, and the records that matter.
+          </Text>
         </View>
 
-        {/* Volume chart card */}
-        <View style={styles.card}>
-          <View style={styles.chartHeaderRow}>
-            <Text style={styles.chartLabel}>TOTAL WEIGHT LIFTED</Text>
-            {hasData && (
+        <View style={styles.rangePicker}>
+          {RANGES.map((item) => {
+            const selected = range === item.value;
+            return (
+              <Pressable
+                key={item.value}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                style={({ pressed }) => [
+                  styles.rangeButton,
+                  selected && styles.rangeButtonActive,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => setRange(item.value)}
+              >
+                <Text
+                  style={[
+                    styles.rangeButtonText,
+                    selected && styles.rangeButtonTextActive,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={styles.performanceCard}>
+          <View style={styles.performanceHeader}>
+            <Text style={styles.sectionLabel}>TOTAL WEIGHT LIFTED</Text>
+            {hasData ? (
               <View
                 style={[
                   styles.changeBadge,
-                  {
-                    backgroundColor:
-                      stats.percentChange >= 0
-                        ? Colors.accentBg
-                        : Colors.dangerBg,
-                  },
+                  stats.percentChange < 0 && styles.changeBadgeDown,
                 ]}
               >
                 <Text
                   style={[
-                    styles.changeBadgeText,
-                    {
-                      color:
-                        stats.percentChange >= 0
-                          ? Colors.accent
-                          : Colors.danger,
-                    },
+                    styles.changeText,
+                    stats.percentChange < 0 && styles.changeTextDown,
                   ]}
                 >
-                  {stats.percentChange >= 0 ? '+' : ''}
-                  {stats.percentChange}%
+                  {changeLabel}
                 </Text>
               </View>
-            )}
+            ) : null}
           </View>
 
           <Text style={styles.peakValue}>
-            {formatWeight(stats.peak)}{' '}
-            <Text style={styles.peakUnit}>kg peak</Text>
+            {formatWeight(stats.peak)}
+            <Text style={styles.peakUnit}> kg peak</Text>
           </Text>
 
-          <LineChart data={points} width={chartWidth} height={150} />
+          <View style={styles.chartWrap}>
+            <LineChart data={points} width={chartWidth} height={166} />
+          </View>
 
-          {/* Low / Avg / Peak */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>LOW</Text>
               <Text style={styles.statValue}>{formatWeight(stats.low)}</Text>
             </View>
+            <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>AVG</Text>
+              <Text style={styles.statLabel}>AVERAGE</Text>
               <Text style={styles.statValue}>{formatWeight(stats.avg)}</Text>
             </View>
+            <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>PEAK</Text>
-              <Text style={[styles.statValue, { color: Colors.accent }]}>
+              <Text style={[styles.statValue, styles.statValueAccent]}>
                 {formatWeight(stats.peak)}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Workout History */}
-        <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeading}>
           <Text style={styles.sectionLabel}>WORKOUT HISTORY</Text>
           <Text style={styles.sectionCount}>{sessions.length} sessions</Text>
         </View>
 
         {sessions.length === 0 ? (
-          <View style={styles.emptyHistory}>
-            <Text style={styles.emptyPrsText}>
-              Completed workouts will appear here.
+          <View style={styles.emptyPanel}>
+            <Text style={styles.emptyCode}>00</Text>
+            <Text style={styles.emptyTitle}>No completed sessions yet</Text>
+            <Text style={styles.emptyText}>
+              Finished workouts will appear here with their Health metrics and
+              full set history.
             </Text>
           </View>
         ) : (
@@ -194,46 +202,53 @@ export function ProgressScreen() {
           </View>
         )}
 
-        {/* PR History */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionLabel}>PR HISTORY</Text>
-          <Text style={styles.sectionCount}>{prHistory.length} records</Text>
+        <View style={styles.sectionHeading}>
+          <Text style={styles.sectionLabel}>PERSONAL RECORDS</Text>
+          <Text style={styles.sectionCount}>{recordHistory.length} records</Text>
         </View>
 
-        {prHistory.length === 0 ? (
-          <View style={styles.emptyPrs}>
-            <Text style={styles.emptyPrsEmoji}>🏆</Text>
-            <Text style={styles.emptyPrsText}>
-              Complete workouts to set personal records
+        {recordHistory.length === 0 ? (
+          <View style={styles.emptyRecords}>
+            <View style={styles.recordMarkMuted}>
+              <Text style={styles.recordMarkMutedText}>PR</Text>
+            </View>
+            <Text style={styles.emptyRecordsText}>
+              Your first completed best set will start this timeline.
             </Text>
           </View>
         ) : (
-          prHistory.map((pr) => {
-            const isAllTimeBest = prs.some(
-              (savedRecord) =>
-                savedRecord.exerciseId === pr.exerciseId &&
-                savedRecord.weight === pr.weight,
-            );
-            return (
-            <View key={`${pr.sessionId}_${pr.exerciseId}`} style={styles.prCard}>
-              <View style={styles.prIcon}>
-                <Text style={styles.prEmoji}>🏆</Text>
-              </View>
-              <View style={styles.prInfo}>
-                <Text style={styles.prName}>{pr.exerciseName}</Text>
-                <Text style={styles.prDate}>
-                  Set {formatShortDate(pr.setAt)}
-                </Text>
-              </View>
-              <View style={styles.prRight}>
-                <Text style={styles.prWeight}>{pr.weight} kg</Text>
-                <Text style={styles.prSubtitle}>
-                  {isAllTimeBest ? 'All-time best' : 'Previous PR'}
-                </Text>
-              </View>
-            </View>
-            );
-          })
+          <View style={styles.recordList}>
+            {recordHistory.map((record, index) => {
+              const isAllTimeBest = records.some(
+                (savedRecord) =>
+                  savedRecord.exerciseId === record.exerciseId &&
+                  savedRecord.weight === record.weight,
+              );
+              return (
+                <View
+                  key={`${record.sessionId}_${record.exerciseId}`}
+                  style={styles.recordRow}
+                >
+                  <View style={styles.recordMark}>
+                    <Text style={styles.recordMarkText}>
+                      {String(index + 1).padStart(2, '0')}
+                    </Text>
+                  </View>
+                  <View style={styles.recordInfo}>
+                    <Text style={styles.recordName}>{record.exerciseName}</Text>
+                    <Text style={styles.recordDate}>
+                      {formatShortDate(record.setAt)} ·{' '}
+                      {isAllTimeBest ? 'All-time best' : 'Previous PR'}
+                    </Text>
+                  </View>
+                  <View style={styles.recordValueWrap}>
+                    <Text style={styles.recordValue}>{record.weight}</Text>
+                    <Text style={styles.recordUnit}>kg</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -242,171 +257,251 @@ export function ProgressScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
-  scroll: { flex: 1 },
-  content: { padding: Spacing.lg, paddingBottom: 100 },
-
+  scroll: { flex: 1, backgroundColor: 'transparent' },
+  content: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: 112,
+  },
+  hero: { paddingTop: Spacing.xl, paddingBottom: Spacing.xl },
   eyebrow: {
+    color: Colors.accent,
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-    color: Colors.textMuted,
-    letterSpacing: 1,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 1.1,
     marginBottom: Spacing.xs,
   },
   title: {
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.heavy,
     color: Colors.textPrimary,
-    marginBottom: Spacing.lg,
+    fontFamily: FontFamily.display,
+    fontSize: 36,
+    letterSpacing: -1,
   },
-
+  subtitle: {
+    maxWidth: 310,
+    color: Colors.textMuted,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginTop: Spacing.sm,
+  },
   rangePicker: {
     flexDirection: 'row',
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.full,
+    backgroundColor: Colors.bgElevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
     padding: 4,
     marginBottom: Spacing.lg,
   },
-  rangeBtn: {
+  rangeButton: {
     flex: 1,
-    paddingVertical: Spacing.sm,
+    minHeight: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: Radius.full,
-    alignItems: 'center',
   },
-  rangeBtnActive: {
-    backgroundColor: Colors.accent,
-  },
-  rangeBtnText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.medium,
+  rangeButtonActive: { backgroundColor: Colors.accent },
+  rangeButtonText: {
     color: Colors.textMuted,
-  },
-  rangeBtnTextActive: {
-    color: '#000',
-    fontWeight: FontWeight.bold,
-  },
-
-  card: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
-  },
-  chartHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  chartLabel: {
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
+    fontWeight: FontWeight.semibold,
+  },
+  rangeButtonTextActive: { color: Colors.bg },
+  performanceCard: {
+    overflow: 'hidden',
+    borderRadius: Radius.xl,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+    padding: Spacing.lg,
+    marginBottom: Spacing.xxxl,
+  },
+  performanceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionLabel: {
     color: Colors.textMuted,
-    letterSpacing: 0.5,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 0.9,
   },
   changeBadge: {
     borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.accentBg,
+    borderWidth: 1,
+    borderColor: Colors.accentBorder,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
   },
-  changeBadgeText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
+  changeBadgeDown: {
+    backgroundColor: Colors.dangerBg,
+    borderColor: Colors.dangerBg,
   },
-  peakValue: {
-    fontSize: FontSize.xxxl,
-    fontWeight: FontWeight.heavy,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.md,
-  },
-  peakUnit: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.regular,
-    color: Colors.textMuted,
-  },
-
-  statsRow: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    marginTop: Spacing.md,
-    paddingTop: Spacing.md,
-  },
-  statItem: { flex: 1, alignItems: 'center' },
-  statLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    letterSpacing: 0.5,
-    marginBottom: Spacing.xs,
-  },
-  statValue: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
-    fontVariant: ['tabular-nums'],
-  },
-
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  sectionLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-    color: Colors.textMuted,
-    letterSpacing: 0.5,
-  },
-  sectionCount: {
-    fontSize: FontSize.sm,
+  changeText: {
     color: Colors.accent,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
   },
-
-  prCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.sm,
+  changeTextDown: { color: Colors.danger },
+  peakValue: {
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: 46,
+    letterSpacing: -1.2,
+    marginTop: Spacing.md,
   },
-  prIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.bgCardAlt,
+  peakUnit: {
+    color: Colors.textMuted,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.lg,
+  },
+  chartWrap: { marginLeft: -Spacing.lg, marginTop: Spacing.md },
+  statsRow: {
+    minHeight: 70,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  statItem: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  prEmoji: { fontSize: FontSize.xl },
-  prInfo: { flex: 1 },
-  prName: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
-    marginBottom: 2,
+  statDivider: {
+    width: 1,
+    backgroundColor: Colors.border,
+    marginVertical: 5,
   },
-  prDate: { fontSize: FontSize.sm, color: Colors.textMuted },
-  prRight: { alignItems: 'flex-end' },
-  prWeight: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.accent,
-  },
-  prSubtitle: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
-
-  emptyPrs: { alignItems: 'center', paddingVertical: Spacing.xxxl },
-  emptyHistory: {
-    paddingVertical: Spacing.xxl,
-    marginBottom: Spacing.lg,
-  },
-  historyList: { marginBottom: Spacing.xxl },
-  emptyPrsEmoji: { fontSize: 48, marginBottom: Spacing.md },
-  emptyPrsText: {
-    fontSize: FontSize.md,
+  statLabel: {
     color: Colors.textMuted,
-    textAlign: 'center',
+    fontSize: 8,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 0.7,
+    marginBottom: Spacing.xs,
   },
+  statValue: {
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.sm,
+    fontVariant: ['tabular-nums'],
+  },
+  statValueAccent: { color: Colors.accent },
+  sectionHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+  },
+  sectionCount: {
+    color: Colors.textSecondary,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.xs,
+  },
+  historyList: { marginBottom: Spacing.xxxl },
+  emptyPanel: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: Spacing.xxl,
+    marginBottom: Spacing.xxxl,
+  },
+  emptyCode: {
+    color: Colors.accent,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.sm,
+    marginBottom: Spacing.md,
+  },
+  emptyTitle: {
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.xl,
+  },
+  emptyText: {
+    maxWidth: 310,
+    color: Colors.textMuted,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginTop: Spacing.sm,
+  },
+  emptyRecords: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.lg,
+  },
+  recordMarkMuted: {
+    width: 42,
+    height: 42,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  recordMarkMutedText: {
+    color: Colors.textMuted,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.xs,
+  },
+  emptyRecordsText: {
+    flex: 1,
+    color: Colors.textMuted,
+    fontSize: FontSize.sm,
+    lineHeight: 19,
+  },
+  recordList: { marginBottom: Spacing.xxl },
+  recordRow: {
+    minHeight: 76,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  recordMark: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.accentBg,
+    borderWidth: 1,
+    borderColor: Colors.accentBorder,
+    marginRight: Spacing.md,
+  },
+  recordMarkText: {
+    color: Colors.accent,
+    fontFamily: FontFamily.data,
+    fontSize: 9,
+    fontWeight: FontWeight.semibold,
+  },
+  recordInfo: { flex: 1 },
+  recordName: {
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.lg,
+  },
+  recordDate: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    marginTop: 4,
+  },
+  recordValueWrap: { alignItems: 'flex-end' },
+  recordValue: {
+    color: Colors.accent,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.semibold,
+  },
+  recordUnit: {
+    color: Colors.textMuted,
+    fontSize: 9,
+    marginTop: 2,
+  },
+  pressed: { opacity: 0.8 },
 });

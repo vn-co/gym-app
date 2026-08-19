@@ -65,3 +65,23 @@ test('calculates truthful activity progress', async () => {
   assert.equal(formatActivityValue(null, 'kcal'), 'Unavailable');
   assert.equal(formatActivityValue(412.6, 'kcal'), '413 kcal');
 });
+
+test('carries the C system through every supporting tab', async () => {
+  const screenPaths = [
+    '../src/screens/RoutinesScreen.tsx',
+    '../src/screens/ProgressScreen.tsx',
+    '../src/screens/LibraryScreen.tsx',
+  ];
+
+  for (const path of screenPaths) {
+    const source = await readFile(new URL(path, import.meta.url), 'utf8');
+    assert.match(source, /AmbientBackdrop/);
+    assert.match(source, /FontFamily\.display/);
+  }
+
+  const routineCard = await readFile(
+    new URL('../src/components/routines/RoutineCard.tsx', import.meta.url),
+    'utf8',
+  );
+  assert.doesNotMatch(routineCard, /routine\.emoji/);
+});

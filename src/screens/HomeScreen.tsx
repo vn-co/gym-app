@@ -382,10 +382,11 @@ export function HomeScreen() {
                 <Text style={styles.sectionAction}>All routines</Text>
               </TouchableOpacity>
             </View>
-            {routines.slice(0, 2).map((routine) => (
+            {routines.slice(0, 2).map((routine, index) => (
               <RoutineCard
                 key={routine.id}
                 routine={routine}
+                index={index}
                 compact
                 onStart={() => handleStartRoutine(routine)}
                 onEdit={() => router.push('/(tabs)/routines')}

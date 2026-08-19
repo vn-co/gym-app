@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import {
   Colors,
+  FontFamily,
   FontSize,
   FontWeight,
   Spacing,
@@ -22,13 +23,12 @@ import {
 } from '../../constants/tokens';
 import { MUSCLE_GROUP_LABELS } from '../../constants/exercises';
 import { generateId, moveItem, parseNumericInput } from '../../utils';
+import { AmbientBackdrop } from '../ui/AmbientBackdrop';
 import type {
   Routine,
   RoutineExercise,
   Exercise,
 } from '../../types';
-
-const EMOJIS = ['💪', '🏋️', '🔥', '⚡', '🎯', '🦵', '🏃', '🧠', '🌊', '🥊'];
 
 interface Props {
   visible: boolean;
@@ -46,7 +46,6 @@ export function RoutineBuilder({
   onClose,
 }: Props) {
   const [name, setName] = useState('');
-  const [emoji, setEmoji] = useState('💪');
   const [exercises, setExercises] = useState<RoutineExercise[]>([]);
   const [showPicker, setShowPicker] = useState(false);
   const [pickerQuery, setPickerQuery] = useState('');
@@ -57,11 +56,9 @@ export function RoutineBuilder({
     if (visible) {
       if (initial) {
         setName(initial.name);
-        setEmoji(initial.emoji);
         setExercises(initial.exercises);
       } else {
         setName('');
-        setEmoji('💪');
         setExercises([]);
       }
     }
@@ -132,7 +129,7 @@ export function RoutineBuilder({
     const routine: Routine = {
       id: initial?.id ?? generateId(),
       name: name.trim(),
-      emoji,
+      emoji: initial?.emoji ?? 'routine',
       exercises,
       createdAt: initial?.createdAt ?? Date.now(),
       lastUsedAt: initial?.lastUsedAt,
@@ -149,6 +146,7 @@ export function RoutineBuilder({
         presentationStyle="pageSheet"
       >
         <SafeAreaView style={styles.safe}>
+          <AmbientBackdrop intensity="quiet" />
           <View style={styles.pickerHeader}>
             <TouchableOpacity
               onPress={() => {
@@ -251,6 +249,7 @@ export function RoutineBuilder({
       presentationStyle="pageSheet"
     >
       <SafeAreaView style={styles.safe}>
+        <AmbientBackdrop intensity="quiet" />
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -273,30 +272,6 @@ export function RoutineBuilder({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* Name + Emoji */}
-            <View style={styles.nameRow}>
-              {/* Emoji picker */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.emojiScroll}
-                contentContainerStyle={styles.emojiScrollContent}
-              >
-                {EMOJIS.map((e) => (
-                  <TouchableOpacity
-                    key={e}
-                    style={[
-                      styles.emojiOption,
-                      emoji === e && styles.emojiSelected,
-                    ]}
-                    onPress={() => setEmoji(e)}
-                  >
-                    <Text style={styles.emojiOptionText}>{e}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
             <TextInput
               style={styles.nameInput}
               value={name}
@@ -479,9 +454,9 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   headerTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
     color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.xl,
   },
   cancelBtn: { fontSize: FontSize.md, color: Colors.textMuted },
   saveBtn: {
@@ -492,36 +467,17 @@ const styles = StyleSheet.create({
 
   body: { padding: Spacing.lg, paddingBottom: 60 },
 
-  nameRow: { marginBottom: Spacing.md },
-  emojiScroll: { marginBottom: Spacing.md },
-  emojiScrollContent: { gap: Spacing.sm },
-  emojiOption: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.bgCard,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  emojiSelected: {
-    borderColor: Colors.accent,
-    backgroundColor: Colors.accentBg,
-  },
-  emojiOptionText: { fontSize: 22 },
-
   nameInput: {
     backgroundColor: Colors.bgCard,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    fontSize: FontSize.lg,
+    paddingVertical: Spacing.lg,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.xl,
     color: Colors.textPrimary,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderStrong,
     marginBottom: Spacing.xl,
-    fontWeight: FontWeight.semibold,
   },
 
   sectionLabel: {

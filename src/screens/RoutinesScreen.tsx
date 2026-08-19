@@ -1,22 +1,36 @@
 import { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
   Alert,
+  Pressable,
   RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
-import { useFocusEffect, router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, FontSize, FontWeight, Spacing, Radius } from '../constants/tokens';
-import { getRoutines, saveRoutine, deleteRoutine, touchRoutineLastUsed, getCustomExercises } from '../services/storage';
+import {
+  Colors,
+  FontFamily,
+  FontSize,
+  FontWeight,
+  Radius,
+  Spacing,
+} from '../constants/tokens';
+import {
+  deleteRoutine,
+  getCustomExercises,
+  getRoutines,
+  saveRoutine,
+  touchRoutineLastUsed,
+} from '../services/storage';
 import { mergeExerciseLibrary } from '../constants/exercises';
 import { useWorkoutStore } from '../store/workoutStore';
 import { RoutineCard } from '../components/routines/RoutineCard';
 import { RoutineBuilder } from '../components/routines/RoutineBuilder';
-import type { Routine, Exercise } from '../types';
+import { AmbientBackdrop } from '../components/ui/AmbientBackdrop';
+import type { Exercise, Routine } from '../types';
 
 export function RoutinesScreen() {
   const [routines, setRoutines] = useState<Routine[]>([]);
@@ -27,17 +41,19 @@ export function RoutinesScreen() {
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const startSessionFromRoutine = useWorkoutStore((s) => s.startSessionFromRoutine);
-  const activeSession = useWorkoutStore((s) => s.session);
+  const startSessionFromRoutine = useWorkoutStore(
+    (state) => state.startSessionFromRoutine,
+  );
+  const activeSession = useWorkoutStore((state) => state.session);
 
   const load = useCallback(async () => {
     try {
-      const [r, custom] = await Promise.all([
+      const [savedRoutines, customExercises] = await Promise.all([
         getRoutines(),
         getCustomExercises(),
       ]);
-      setRoutines(r);
-      setAllExercises(mergeExerciseLibrary(custom));
+      setRoutines(savedRoutines);
+      setAllExercises(mergeExerciseLibrary(customExercises));
     } catch {
       Alert.alert(
         'Couldn’t load saved data',
@@ -46,7 +62,11 @@ export function RoutinesScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -94,28 +114,24 @@ export function RoutinesScreen() {
   };
 
   const handleDeleteRoutine = (routine: Routine) => {
-    Alert.alert(
-      `Delete "${routine.name}"?`,
-      'This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteRoutine(routine.id);
-              await load();
-            } catch {
-              Alert.alert(
-                'Couldn’t delete routine',
-                'Your saved routine was not changed. Try again.',
-              );
-            }
-          },
+    Alert.alert(`Delete "${routine.name}"?`, 'This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteRoutine(routine.id);
+            await load();
+          } catch {
+            Alert.alert(
+              'Couldn’t delete routine',
+              'Your saved routine was not changed. Try again.',
+            );
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const openBuilder = (routine?: Routine) => {
@@ -125,43 +141,89 @@ export function RoutinesScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <AmbientBackdrop intensity="quiet" />
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Routines</Text>
-          <Text style={styles.subtitle}>{routines.length} saved</Text>
+        <View style={styles.heading}>
+          <Text style={styles.eyebrow}>ROUTINES</Text>
+          <Text style={styles.title}>Training plans</Text>
+          <Text style={styles.subtitle}>
+            {routines.length === 1
+              ? '1 saved routine'
+              : `${routines.length} saved routines`}
+          </Text>
         </View>
-        <TouchableOpacity style={styles.newBtn} onPress={() => openBuilder()}>
-          <Text style={styles.newBtnText}>+ New</Text>
-        </TouchableOpacity>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Create a new routine"
+          style={({ pressed }) => [styles.newButton, pressed && styles.pressed]}
+          onPress={() => openBuilder()}
+        >
+          <Text style={styles.newButtonMark}>+</Text>
+          <Text style={styles.newButtonText}>New</Text>
+        </Pressable>
       </View>
 
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.accent}
+          />
+        }
         showsVerticalScrollIndicator={false}
       >
+        {activeSession ? (
+          <View style={styles.activeNotice}>
+            <View style={styles.activeDot} />
+            <View style={styles.activeCopy}>
+              <Text style={styles.activeLabel}>WORKOUT IN PROGRESS</Text>
+              <Text style={styles.activeName} numberOfLines={1}>
+                {activeSession.workoutName}
+              </Text>
+            </View>
+            <Pressable onPress={() => router.push('/(tabs)/workout')}>
+              <Text style={styles.resumeText}>Resume</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {routines.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>📋</Text>
-            <Text style={styles.emptyTitle}>No routines yet</Text>
-            <Text style={styles.emptySub}>
-              Create your first routine — Push Day, Pull Day, Legs, whatever works for you.
+            <View style={styles.emptyMark}>
+              <Text style={styles.emptyMarkText}>R/01</Text>
+            </View>
+            <Text style={styles.emptyTitle}>Build your first plan</Text>
+            <Text style={styles.emptySubtitle}>
+              Save the exercises, order, sets, reps, and starting weights you
+              want ready for your next session.
             </Text>
-            <TouchableOpacity style={styles.emptyBtn} onPress={() => openBuilder()}>
-              <Text style={styles.emptyBtnText}>Create Routine</Text>
-            </TouchableOpacity>
+            <Pressable
+              style={({ pressed }) => [
+                styles.emptyButton,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => openBuilder()}
+            >
+              <Text style={styles.emptyButtonText}>Create routine</Text>
+              <Text style={styles.emptyButtonArrow}>→</Text>
+            </Pressable>
           </View>
         ) : (
-          routines.map((routine) => (
-            <RoutineCard
-              key={routine.id}
-              routine={routine}
-              onStart={() => handleStartRoutine(routine)}
-              onEdit={() => openBuilder(routine)}
-              onDelete={() => handleDeleteRoutine(routine)}
-            />
-          ))
+          <View style={styles.routineList}>
+            {routines.map((routine, index) => (
+              <RoutineCard
+                key={routine.id}
+                routine={routine}
+                index={index}
+                onStart={() => handleStartRoutine(routine)}
+                onEdit={() => openBuilder(routine)}
+                onDelete={() => handleDeleteRoutine(routine)}
+              />
+            ))}
+          </View>
         )}
       </ScrollView>
 
@@ -183,64 +245,146 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
   header: {
     flexDirection: 'row',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.md,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.lg,
+  },
+  heading: { flex: 1, paddingRight: Spacing.lg },
+  eyebrow: {
+    color: Colors.accent,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 1.1,
+    marginBottom: Spacing.xs,
   },
   title: {
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.heavy,
     color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: 36,
+    letterSpacing: -1,
   },
   subtitle: {
-    fontSize: FontSize.sm,
     color: Colors.textMuted,
-    marginTop: 2,
+    fontSize: FontSize.sm,
+    marginTop: Spacing.xs,
   },
-  newBtn: {
-    backgroundColor: Colors.accent,
+  newButton: {
+    minWidth: 84,
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
     borderRadius: Radius.full,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.accent,
   },
-  newBtnText: {
-    fontSize: FontSize.md,
+  newButtonMark: {
+    color: Colors.bg,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.lg,
+  },
+  newButtonText: {
+    color: Colors.bg,
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.bold,
-    color: '#000',
   },
   scroll: { flex: 1 },
-  content: { padding: Spacing.lg, paddingBottom: 100 },
-
-  empty: {
+  content: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: 112,
+  },
+  activeNotice: {
+    minHeight: 64,
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: Spacing.xl,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: Colors.accentBorder,
+    marginBottom: Spacing.xl,
   },
-  emptyEmoji: { fontSize: 56, marginBottom: Spacing.lg },
-  emptyTitle: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
+  activeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.accent,
+    marginRight: Spacing.md,
+  },
+  activeCopy: { flex: 1 },
+  activeLabel: {
+    color: Colors.accent,
+    fontSize: 9,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 0.8,
+  },
+  activeName: {
     color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
+    fontSize: FontSize.sm,
+    marginTop: 3,
   },
-  emptySub: {
-    fontSize: FontSize.md,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 22,
+  resumeText: {
+    color: Colors.accent,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+  },
+  routineList: { gap: Spacing.md },
+  empty: {
+    overflow: 'hidden',
+    borderRadius: Radius.xl,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+    padding: Spacing.xxl,
+    marginTop: Spacing.xl,
+  },
+  emptyMark: {
+    width: 54,
+    height: 54,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.accentBg,
+    borderWidth: 1,
+    borderColor: Colors.accentBorder,
     marginBottom: Spacing.xxl,
   },
-  emptyBtn: {
-    backgroundColor: Colors.accent,
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.xxxl,
-    paddingVertical: Spacing.md,
+  emptyMarkText: {
+    color: Colors.accent,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
   },
-  emptyBtnText: {
+  emptyTitle: {
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.xxl,
+  },
+  emptySubtitle: {
+    color: Colors.textMuted,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xxl,
+  },
+  emptyButton: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.accent,
+    paddingHorizontal: Spacing.lg,
+  },
+  emptyButtonText: {
+    color: Colors.bg,
     fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
-    color: '#000',
   },
+  emptyButtonArrow: {
+    color: Colors.bg,
+    fontFamily: FontFamily.data,
+    fontSize: FontSize.xl,
+  },
+  pressed: { opacity: 0.82, transform: [{ scale: 0.99 }] },
 });
