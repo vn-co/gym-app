@@ -31,12 +31,19 @@ import { WorkoutActionBar } from '../components/workout/WorkoutActionBar';
 import { EmptyWorkoutState } from '../components/workout/EmptyWorkoutState';
 import {
   getCustomExercises,
+  getPersonalRecords,
+  getSessions,
   saveSession,
   updatePersonalRecords,
 } from '../services/storage';
 import { mergeExerciseLibrary } from '../constants/exercises';
 import { finishActiveWorkout } from '../services/finishActiveWorkout';
-import type { Exercise } from '../types';
+import type {
+  Exercise,
+  HeartRateSample,
+  PersonalRecord,
+  WorkoutSession,
+} from '../types';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { healthService } from '../health/healthService';
 import type {
@@ -44,10 +51,21 @@ import type {
   LiveHealthMetrics,
 } from '../health/types';
 import type { WorkoutHealthSummary } from '../types';
+import { WorkoutCompleteView } from '../components/workout/WorkoutCompleteView';
+import {
+  findNewPersonalRecords,
+  findPreviousComparableWorkout,
+} from '../utils/workoutCompletion';
 
 type PickerMode =
   | { type: 'add' }
   | { type: 'replace'; workoutExerciseId: string };
+
+interface CompletedWorkoutState {
+  workout: WorkoutSession;
+  previousComparable?: WorkoutSession;
+  newRecords: PersonalRecord[];
+}
 
 export function WorkoutScreen() {
   const insets = useSafeAreaInsets();
@@ -78,6 +96,9 @@ export function WorkoutScreen() {
     useState<HealthWorkoutState>('idle');
   const [healthAvailable, setHealthAvailable] = useState<boolean | null>(null);
   const [liveMetrics, setLiveMetrics] = useState<LiveHealthMetrics | null>(null);
+  const [heartRateSamples, setHeartRateSamples] = useState<HeartRateSample[]>([]);
+  const [completedWorkout, setCompletedWorkout] =
+    useState<CompletedWorkoutState | null>(null);
   const attemptedHealthSessionRef = useRef<string | null>(null);
   const finishedHealthSummaryRef = useRef<WorkoutHealthSummary | null>(null);
   const tabBottom = Math.max(insets.bottom, TabBarMetrics.bottomGap);
@@ -94,12 +115,24 @@ export function WorkoutScreen() {
       return;
     }
 
+    setHeartRateSamples([]);
+
     let cancelled = false;
     const unsubscribeState = healthService.subscribeToWorkoutState((snapshot) => {
       if (!cancelled) setHealthState(snapshot.state);
     });
     const unsubscribeMetrics = healthService.subscribeToLiveMetrics((metrics) => {
-      if (!cancelled) setLiveMetrics(metrics);
+      if (cancelled) return;
+      setLiveMetrics(metrics);
+      if (metrics.heartRateBpm != null) {
+        setHeartRateSamples((current) => {
+          if (current.at(-1)?.capturedAt === metrics.capturedAt) return current;
+          return [
+            ...current.slice(-179),
+            { capturedAt: metrics.capturedAt, bpm: metrics.heartRateBpm! },
+          ];
+        });
+      }
     });
 
     const connectHealthWorkout = async () => {
@@ -172,6 +205,7 @@ export function WorkoutScreen() {
   };
 
   const handleStartWorkout = () => {
+    setCompletedWorkout(null);
     setWorkoutName('My Workout');
     setEditingWorkoutName(false);
     setNameModalVisible(true);
@@ -237,7 +271,7 @@ export function WorkoutScreen() {
       return finishedHealthSummaryRef.current;
     }
     if (healthAvailable === false || healthAvailable === null) {
-      return { status: 'unavailable' };
+      return { status: 'unavailable', heartRateSamples };
     }
     try {
       const workout = await healthService.finishWorkout();
@@ -248,11 +282,15 @@ export function WorkoutScreen() {
           workout.activeEnergyKilocalories ?? undefined,
         averageHeartRateBpm: workout.averageHeartRateBpm ?? undefined,
         maximumHeartRateBpm: workout.maximumHeartRateBpm ?? undefined,
+        heartRateSamples,
       };
       finishedHealthSummaryRef.current = summary;
       return summary;
     } catch {
-      const summary: WorkoutHealthSummary = { status: 'failed' };
+      const summary: WorkoutHealthSummary = {
+        status: 'failed',
+        heartRateSamples,
+      };
       finishedHealthSummaryRef.current = summary;
       return summary;
     }
@@ -316,12 +354,27 @@ export function WorkoutScreen() {
         text: 'Finish',
         onPress: async () => {
           try {
+            const [sessionsBeforeWorkout, recordsBeforeWorkout] =
+              await Promise.all([getSessions(), getPersonalRecords()]);
             const healthSummary = await finishHealthWorkout();
-            await finishActiveWorkout(session, Date.now(), {
+            const completed = await finishActiveWorkout(session, Date.now(), {
               saveSession,
               updatePersonalRecords,
               clearActiveSession: cancelSession,
               healthSummary,
+            });
+            setCompletedWorkout({
+              workout: completed,
+              previousComparable: findPreviousComparableWorkout(
+                completed.name,
+                sessionsBeforeWorkout.filter(
+                  (savedWorkout) => savedWorkout.id !== completed.id,
+                ),
+              ),
+              newRecords: findNewPersonalRecords(
+                completed,
+                recordsBeforeWorkout,
+              ),
             });
           } catch {
             Alert.alert(
@@ -415,6 +468,19 @@ export function WorkoutScreen() {
 
   // ── No active session ─────────────────────────────────────────────────────
   if (!session) {
+    if (completedWorkout) {
+      return (
+        <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+          <WorkoutCompleteView
+            workout={completedWorkout.workout}
+            previousComparable={completedWorkout.previousComparable}
+            newRecords={completedWorkout.newRecords}
+            bottomInset={tabBottom + TabBarMetrics.height}
+            onDone={() => setCompletedWorkout(null)}
+          />
+        </SafeAreaView>
+      );
+    }
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <EmptyWorkoutState onStart={handleStartWorkout} />

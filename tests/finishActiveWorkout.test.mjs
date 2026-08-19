@@ -83,3 +83,30 @@ test('keeps the active draft when personal-record saving fails', async () => {
   );
   assert.deepEqual(calls, ['session', 'records']);
 });
+
+test('stores the Apple Health completion summary with local history', async () => {
+  let saved;
+  const healthSummary = {
+    status: 'saved',
+    workoutUuid: '92B54887-0D38-4B29-BC2E-D68EAE253E8C',
+    activeEnergyKilocalories: 245,
+    averageHeartRateBpm: 132,
+    maximumHeartRateBpm: 158,
+    heartRateSamples: [
+      { capturedAt: 10_000, bpm: 128 },
+      { capturedAt: 11_000, bpm: 136 },
+    ],
+  };
+
+  const completed = await finishActiveWorkout(active, 13_500, {
+    saveSession: async (session) => {
+      saved = session;
+    },
+    updatePersonalRecords: async () => {},
+    clearActiveSession: () => {},
+    healthSummary,
+  });
+
+  assert.deepEqual(completed.health, healthSummary);
+  assert.deepEqual(saved.health, healthSummary);
+});

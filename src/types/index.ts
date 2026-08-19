@@ -43,6 +43,12 @@ export interface WorkoutHealthSummary {
   activeEnergyKilocalories?: number;
   averageHeartRateBpm?: number;
   maximumHeartRateBpm?: number;
+  heartRateSamples?: HeartRateSample[];
+}
+
+export interface HeartRateSample {
+  capturedAt: number;
+  bpm: number;
 }
 
 export interface WorkoutSession {
