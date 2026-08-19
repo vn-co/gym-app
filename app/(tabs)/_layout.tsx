@@ -27,7 +27,7 @@ export default function TabsLayout() {
         tabBarAccessibilityLabel: 'Main navigation',
         tabBarBackground: () => (
           <View style={StyleSheet.absoluteFill}>
-            <BlurView intensity={58} tint="dark" style={StyleSheet.absoluteFill} />
+            <BlurView intensity={72} tint="dark" style={StyleSheet.absoluteFill} />
             <View style={[StyleSheet.absoluteFill, styles.blurTint]} />
           </View>
         ),
@@ -39,10 +39,10 @@ export default function TabsLayout() {
           height: TabBarMetrics.height,
           paddingTop: 5,
           paddingBottom: 4,
-          borderRadius: 24,
+          borderRadius: 26,
           borderTopWidth: 1,
           borderWidth: 1,
-          borderColor: Colors.border,
+          borderColor: Colors.borderStrong,
           backgroundColor: 'transparent',
           overflow: 'hidden',
         },
@@ -74,7 +74,7 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   blurTint: {
-    backgroundColor: '#171A18CC',
+    backgroundColor: '#0D100EE8',
   },
   tabItem: {
     minHeight: 44,

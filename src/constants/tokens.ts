@@ -1,34 +1,38 @@
 export const Colors = {
   // Backgrounds
-  bg: '#0B0D0C',
-  bgCard: '#171A18',
-  bgCardAlt: '#1E221F',
-  bgInput: '#232724',
+  bg: '#080A09',
+  bgElevated: '#0E110F',
+  bgCard: '#141714',
+  bgCardAlt: '#1A1E1A',
+  bgInput: '#202520',
 
   // Accent
-  accent: '#C2E653',
-  accentDim: '#AACB43',
-  accentBg: '#C2E65314',
+  accent: '#A5FF01',
+  accentDim: '#86CF16',
+  accentSoft: '#95AE67',
+  accentBg: '#A5FF0114',
+  accentBorder: '#A5FF0138',
 
   // Danger
-  danger: '#FF6B6B',
-  dangerBg: '#FF6B6B14',
+  danger: '#FF716B',
+  dangerBg: '#FF716B14',
 
   // Text
-  textPrimary: '#F3F5EF',
-  textSecondary: '#A1A69E',
-  textMuted: '#71776F',
-  textAccent: '#C2E653',
+  textPrimary: '#F7F8F3',
+  textSecondary: '#B1B6AD',
+  textMuted: '#72786F',
+  textAccent: '#A5FF01',
 
   // UI
-  border: '#292E2A',
-  borderAccent: '#C2E653',
-  dot: '#C2E653',
-  dotInactive: '#292E2A',
+  border: '#292E29',
+  borderStrong: '#3A4139',
+  borderAccent: '#A5FF01',
+  dot: '#A5FF01',
+  dotInactive: '#292E29',
 
   // Chart
-  chartLine: '#C2E653',
-  chartGrid: '#292E2A',
+  chartLine: '#A5FF01',
+  chartGrid: '#292E29',
 } as const;
 
 export const MotionDuration = {
@@ -55,8 +59,8 @@ export const Spacing = {
 export const Radius = {
   sm: 8,
   md: 12,
-  lg: 16,
-  xl: 20,
+  lg: 18,
+  xl: 22,
   full: 9999,
 } as const;
 
@@ -78,3 +82,8 @@ export const FontWeight = {
   bold: '700' as const,
   heavy: '800' as const,
 };
+
+export const FontFamily = {
+  display: 'Georgia',
+  data: 'Menlo',
+} as const;
