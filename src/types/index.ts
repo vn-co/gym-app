@@ -37,6 +37,14 @@ export interface WorkoutExercise {
   sets: SetEntry[];
 }
 
+export interface WorkoutHealthSummary {
+  status: 'saved' | 'failed' | 'unavailable';
+  workoutUuid?: string;
+  activeEnergyKilocalories?: number;
+  averageHeartRateBpm?: number;
+  maximumHeartRateBpm?: number;
+}
+
 export interface WorkoutSession {
   id: string;
   name: string;
@@ -47,6 +55,7 @@ export interface WorkoutSession {
   totalVolume: number; // kg
   totalSets: number;
   notes?: string;
+  health?: WorkoutHealthSummary;
 }
 
 // ─── Active Session (Zustand) ────────────────────────────────────────────────

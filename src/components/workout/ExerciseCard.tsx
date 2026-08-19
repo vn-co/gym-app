@@ -21,13 +21,14 @@ import { AppIcon } from '../icons/AppIcon';
 
 interface Props {
   exercise: WorkoutExercise;
-  onRemove: () => void;
+  onOpenMenu: () => void;
 }
 
-export function ExerciseCard({ exercise, onRemove }: Props) {
+export function ExerciseCard({ exercise, onOpenMenu }: Props) {
   const addSet = useWorkoutStore((s) => s.addSet);
   const updateSet = useWorkoutStore((s) => s.updateSet);
   const toggleSetComplete = useWorkoutStore((s) => s.toggleSetComplete);
+  const removeSet = useWorkoutStore((s) => s.removeSet);
   const reduceMotion = useReducedMotion();
 
   const completedSets = exercise.sets.filter((set) => set.completed).length;
@@ -64,7 +65,7 @@ export function ExerciseCard({ exercise, onRemove }: Props) {
             styles.menuButton,
             pressed && styles.buttonPressed,
           ]}
-          onPress={onRemove}
+          onPress={onOpenMenu}
         >
           <AppIcon name="more" size={22} color={Colors.textSecondary} />
         </Pressable>
@@ -80,7 +81,7 @@ export function ExerciseCard({ exercise, onRemove }: Props) {
         <Text style={[styles.colLabel, { flex: 1, textAlign: 'center' }]}>
           REPS
         </Text>
-        <View style={{ width: 44 }} />
+        <View style={{ width: 76 }} />
       </View>
 
       {exercise.sets.map((set, idx) => (
@@ -90,6 +91,8 @@ export function ExerciseCard({ exercise, onRemove }: Props) {
           index={idx}
           onUpdate={(updates) => updateSet(exercise.id, set.id, updates)}
           onToggleComplete={() => toggleSetComplete(exercise.id, set.id)}
+          onRemove={() => removeSet(exercise.id, set.id)}
+          canRemove={exercise.sets.length > 1}
         />
       ))}
 
@@ -108,11 +111,10 @@ export function ExerciseCard({ exercise, onRemove }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.xl,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
+    paddingVertical: Spacing.lg,
+    marginBottom: Spacing.lg,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
     borderColor: Colors.border,
   },
   header: {
@@ -163,6 +165,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
+    borderRadius: Radius.md,
   },
   addSetText: {
     fontSize: FontSize.md,

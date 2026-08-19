@@ -88,3 +88,41 @@ test('starts routine exercises in their saved order', () => {
     ['row', 'bench_press'],
   );
 });
+
+test('renames, replaces, and reorders an active workout without losing sets', () => {
+  const memory = createMemoryStorage();
+  const { store } = createWorkoutStore(memory, {
+    onIssue: () => {},
+    onRecovered: () => {},
+  });
+  store.getState().startSession('Workout');
+  store.getState().addExercise({
+    exerciseId: 'bench_press',
+    exerciseName: 'Bench Press',
+  });
+  store.getState().addExercise({ exerciseId: 'row', exerciseName: 'Row' });
+
+  const [bench, row] = store.getState().session.exercises;
+  store.getState().updateSet(bench.id, bench.sets[0].id, {
+    weight: 80,
+    reps: 5,
+  });
+  store.getState().renameSession('Upper');
+  store.getState().replaceExercise(bench.id, {
+    exerciseId: 'incline_press',
+    exerciseName: 'Incline Press',
+  });
+  store.getState().moveExercise(row.id, 0);
+
+  const session = store.getState().session;
+  assert.equal(session.workoutName, 'Upper');
+  assert.deepEqual(
+    session.exercises.map((exercise) => exercise.exerciseId),
+    ['row', 'incline_press'],
+  );
+  assert.deepEqual(session.exercises[1].sets[0], {
+    ...bench.sets[0],
+    weight: 80,
+    reps: 5,
+  });
+});

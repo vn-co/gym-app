@@ -25,6 +25,7 @@ interface Props {
   exercises: Exercise[];
   onSelect: (exercise: Exercise) => void;
   onClose: () => void;
+  title?: string;
 }
 
 export function ExercisePicker({
@@ -32,6 +33,7 @@ export function ExercisePicker({
   exercises,
   onSelect,
   onClose,
+  title = 'Add exercise',
 }: Props) {
   const [query, setQuery] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export function ExercisePicker({
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Add exercise</Text>
+          <Text style={styles.title}>{title}</Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Close exercise picker"

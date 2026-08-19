@@ -1,4 +1,8 @@
-import type { ActiveSession, WorkoutSession } from '../types';
+import type {
+  ActiveSession,
+  WorkoutHealthSummary,
+  WorkoutSession,
+} from '../types';
 import { getElapsedSeconds } from '../store/activeSessionTimer';
 import { calcVolume } from '../utils';
 
@@ -6,6 +10,7 @@ interface FinishDependencies {
   saveSession: (session: WorkoutSession) => Promise<void>;
   updatePersonalRecords: (session: WorkoutSession) => Promise<void>;
   clearActiveSession: () => void;
+  healthSummary?: WorkoutHealthSummary;
 }
 
 export async function finishActiveWorkout(
@@ -29,6 +34,7 @@ export async function finishActiveWorkout(
         total + exercise.sets.filter((setEntry) => setEntry.completed).length,
       0,
     ),
+    health: dependencies.healthSummary,
   };
 
   await dependencies.saveSession(completed);

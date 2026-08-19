@@ -35,9 +35,15 @@ export interface WorkoutStore {
   pauseSession: () => void;
   resumeSession: () => void;
   cancelSession: () => void;
+  renameSession: (name: string) => void;
 
   addExercise: (exercise: Omit<WorkoutExercise, 'id' | 'sets'>) => void;
   removeExercise: (exerciseId: string) => void;
+  replaceExercise: (
+    workoutExerciseId: string,
+    exercise: Omit<WorkoutExercise, 'id' | 'sets'>,
+  ) => void;
+  moveExercise: (workoutExerciseId: string, toIndex: number) => void;
 
   addSet: (workoutExerciseId: string, set?: Partial<SetEntry>) => void;
   updateSet: (
@@ -110,6 +116,13 @@ const createWorkoutState: StateCreator<WorkoutStore> = (set, get) => ({
 
   cancelSession: () => set({ session: null }),
 
+  renameSession: (name) =>
+    set((state) =>
+      state.session
+        ? { session: { ...state.session, workoutName: name } }
+        : state,
+    ),
+
   addExercise: (exercise) =>
     set((state) => {
       if (!state.session) return state;
@@ -144,6 +157,41 @@ const createWorkoutState: StateCreator<WorkoutStore> = (set, get) => ({
           ),
         },
       };
+    }),
+
+  replaceExercise: (workoutExerciseId, replacement) =>
+    set((state) => {
+      if (!state.session) return state;
+      return {
+        session: {
+          ...state.session,
+          exercises: state.session.exercises.map((exercise) =>
+            exercise.id === workoutExerciseId
+              ? { ...exercise, ...replacement }
+              : exercise,
+          ),
+        },
+      };
+    }),
+
+  moveExercise: (workoutExerciseId, toIndex) =>
+    set((state) => {
+      if (!state.session) return state;
+      const fromIndex = state.session.exercises.findIndex(
+        (exercise) => exercise.id === workoutExerciseId,
+      );
+      if (
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        toIndex >= state.session.exercises.length ||
+        fromIndex === toIndex
+      ) {
+        return state;
+      }
+      const exercises = [...state.session.exercises];
+      const [exercise] = exercises.splice(fromIndex, 1);
+      exercises.splice(toIndex, 0, exercise);
+      return { session: { ...state.session, exercises } };
     }),
 
   addSet: (workoutExerciseId, partial) =>

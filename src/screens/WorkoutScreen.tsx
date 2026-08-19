@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -38,6 +38,16 @@ import { mergeExerciseLibrary } from '../constants/exercises';
 import { finishActiveWorkout } from '../services/finishActiveWorkout';
 import type { Exercise } from '../types';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { healthService } from '../health/healthService';
+import type {
+  HealthWorkoutState,
+  LiveHealthMetrics,
+} from '../health/types';
+import type { WorkoutHealthSummary } from '../types';
+
+type PickerMode =
+  | { type: 'add' }
+  | { type: 'replace'; workoutExerciseId: string };
 
 export function WorkoutScreen() {
   const insets = useSafeAreaInsets();
@@ -45,18 +55,104 @@ export function WorkoutScreen() {
   const session = useWorkoutStore((s) => s.session);
   const startSession = useWorkoutStore((s) => s.startSession);
   const cancelSession = useWorkoutStore((s) => s.cancelSession);
+  const renameSession = useWorkoutStore((s) => s.renameSession);
+  const pauseSession = useWorkoutStore((s) => s.pauseSession);
+  const resumeSession = useWorkoutStore((s) => s.resumeSession);
   const addExercise = useWorkoutStore((s) => s.addExercise);
   const removeExercise = useWorkoutStore((s) => s.removeExercise);
+  const replaceExercise = useWorkoutStore((s) => s.replaceExercise);
+  const moveExercise = useWorkoutStore((s) => s.moveExercise);
 
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerExercises, setPickerExercises] = useState<Exercise[]>(() =>
     mergeExerciseLibrary([]),
   );
   const [nameModalVisible, setNameModalVisible] = useState(false);
+  const [editingWorkoutName, setEditingWorkoutName] = useState(false);
   const [workoutName, setWorkoutName] = useState('');
+  const [pickerMode, setPickerMode] = useState<PickerMode>({ type: 'add' });
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
+    null,
+  );
+  const [healthState, setHealthState] =
+    useState<HealthWorkoutState>('idle');
+  const [healthAvailable, setHealthAvailable] = useState<boolean | null>(null);
+  const [liveMetrics, setLiveMetrics] = useState<LiveHealthMetrics | null>(null);
+  const attemptedHealthSessionRef = useRef<string | null>(null);
+  const finishedHealthSummaryRef = useRef<WorkoutHealthSummary | null>(null);
   const tabBottom = Math.max(insets.bottom, TabBarMetrics.bottomGap);
   const actionBottom = tabBottom + TabBarMetrics.height + Spacing.sm;
   const scrollBottomInset = actionBottom + 68;
+
+  useEffect(() => {
+    if (!session) {
+      setHealthState('idle');
+      setLiveMetrics(null);
+      setHealthAvailable(null);
+      attemptedHealthSessionRef.current = null;
+      finishedHealthSummaryRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+    const unsubscribeState = healthService.subscribeToWorkoutState((snapshot) => {
+      if (!cancelled) setHealthState(snapshot.state);
+    });
+    const unsubscribeMetrics = healthService.subscribeToLiveMetrics((metrics) => {
+      if (!cancelled) setLiveMetrics(metrics);
+    });
+
+    const connectHealthWorkout = async () => {
+      try {
+        const available = await healthService.isHealthDataAvailable();
+        if (cancelled) return;
+        setHealthAvailable(available);
+        if (!available) return;
+
+        await healthService.requestAuthorization();
+        const snapshot = await healthService.getWorkoutState();
+        if (cancelled) return;
+        setHealthState(snapshot.state);
+
+        if (attemptedHealthSessionRef.current === session.sessionId) return;
+        attemptedHealthSessionRef.current = session.sessionId;
+        if (
+          snapshot.state === 'idle' ||
+          snapshot.state === 'ended' ||
+          snapshot.state === 'failed'
+        ) {
+          setHealthState('starting');
+          await healthService.startWorkout(session.sessionId, session.startTime);
+          if (!cancelled) setHealthState('running');
+        }
+      } catch {
+        if (!cancelled) setHealthState('failed');
+      }
+    };
+
+    void connectHealthWorkout();
+    return () => {
+      cancelled = true;
+      unsubscribeState();
+      unsubscribeMetrics();
+    };
+  }, [session?.sessionId]);
+
+  useEffect(() => {
+    if (!session?.exercises.length) {
+      setSelectedExerciseId(null);
+      return;
+    }
+    const selectedStillExists = session.exercises.some(
+      (exercise) => exercise.id === selectedExerciseId,
+    );
+    if (!selectedStillExists) {
+      const firstIncomplete = session.exercises.find((exercise) =>
+        exercise.sets.some((setEntry) => !setEntry.completed),
+      );
+      setSelectedExerciseId(firstIncomplete?.id ?? session.exercises[0].id);
+    }
+  }, [selectedExerciseId, session?.exercises]);
 
   const animateWorkoutLayout = () => {
     if (reduceMotion) return;
@@ -77,26 +173,40 @@ export function WorkoutScreen() {
 
   const handleStartWorkout = () => {
     setWorkoutName('My Workout');
+    setEditingWorkoutName(false);
     setNameModalVisible(true);
   };
 
-  const confirmStart = () => {
-    startSession(workoutName.trim() || 'My Workout');
+  const confirmWorkoutName = () => {
+    const nextName = workoutName.trim() || 'My Workout';
+    if (editingWorkoutName) {
+      renameSession(nextName);
+    } else {
+      startSession(nextName);
+    }
     setNameModalVisible(false);
   };
 
   const handleAddExercise = (exercise: Exercise) => {
     animateWorkoutLayout();
-    addExercise({
-      exerciseId: exercise.id,
-      exerciseName: exercise.name,
-    });
+    if (pickerMode.type === 'replace') {
+      replaceExercise(pickerMode.workoutExerciseId, {
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+      });
+    } else {
+      addExercise({
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+      });
+    }
   };
 
-  const handleOpenPicker = async () => {
+  const handleOpenPicker = async (mode: PickerMode = { type: 'add' }) => {
     try {
       const custom = await getCustomExercises();
       setPickerExercises(mergeExerciseLibrary(custom));
+      setPickerMode(mode);
       setPickerVisible(true);
     } catch {
       Alert.alert(
@@ -104,6 +214,87 @@ export function WorkoutScreen() {
         'Your saved exercises could not be loaded. Try again.',
       );
     }
+  };
+
+  const handleTogglePause = () => {
+    if (!session) return;
+    const isPaused = session.runningSince === null;
+    if (isPaused) {
+      resumeSession();
+      if (healthState === 'paused') {
+        void healthService.resumeWorkout().catch(() => setHealthState('failed'));
+      }
+    } else {
+      pauseSession();
+      if (healthState === 'running') {
+        void healthService.pauseWorkout().catch(() => setHealthState('failed'));
+      }
+    }
+  };
+
+  const finishHealthWorkout = async (): Promise<WorkoutHealthSummary> => {
+    if (finishedHealthSummaryRef.current) {
+      return finishedHealthSummaryRef.current;
+    }
+    if (healthAvailable === false || healthAvailable === null) {
+      return { status: 'unavailable' };
+    }
+    try {
+      const workout = await healthService.finishWorkout();
+      const summary: WorkoutHealthSummary = {
+        status: 'saved',
+        workoutUuid: workout.workoutUuid,
+        activeEnergyKilocalories:
+          workout.activeEnergyKilocalories ?? undefined,
+        averageHeartRateBpm: workout.averageHeartRateBpm ?? undefined,
+        maximumHeartRateBpm: workout.maximumHeartRateBpm ?? undefined,
+      };
+      finishedHealthSummaryRef.current = summary;
+      return summary;
+    } catch {
+      const summary: WorkoutHealthSummary = { status: 'failed' };
+      finishedHealthSummaryRef.current = summary;
+      return summary;
+    }
+  };
+
+  const openWorkoutEditor = () => {
+    if (!session) return;
+    setWorkoutName(session.workoutName);
+    setEditingWorkoutName(true);
+    setNameModalVisible(true);
+  };
+
+  const openExerciseMenu = (workoutExerciseId: string) => {
+    if (!session) return;
+    const index = session.exercises.findIndex(
+      (exercise) => exercise.id === workoutExerciseId,
+    );
+    const exercise = session.exercises[index];
+    if (!exercise) return;
+
+    Alert.alert(exercise.exerciseName, 'Manage this exercise', [
+      {
+        text: 'Replace exercise',
+        onPress: () =>
+          void handleOpenPicker({ type: 'replace', workoutExerciseId }),
+      },
+      ...(index > 0
+        ? [{ text: 'Move up', onPress: () => moveExercise(workoutExerciseId, index - 1) }]
+        : []),
+      ...(index < session.exercises.length - 1
+        ? [{ text: 'Move down', onPress: () => moveExercise(workoutExerciseId, index + 1) }]
+        : []),
+      {
+        text: 'Delete exercise',
+        style: 'destructive',
+        onPress: () => {
+          animateWorkoutLayout();
+          removeExercise(workoutExerciseId);
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const handleFinishWorkout = () => {
@@ -125,10 +316,12 @@ export function WorkoutScreen() {
         text: 'Finish',
         onPress: async () => {
           try {
+            const healthSummary = await finishHealthWorkout();
             await finishActiveWorkout(session, Date.now(), {
               saveSession,
               updatePersonalRecords,
               clearActiveSession: cancelSession,
+              healthSummary,
             });
           } catch {
             Alert.alert(
@@ -144,9 +337,81 @@ export function WorkoutScreen() {
   const handleCancelWorkout = () => {
     Alert.alert('Cancel Workout?', 'Progress will be lost.', [
       { text: 'Keep Going', style: 'cancel' },
-      { text: 'Cancel Workout', style: 'destructive', onPress: cancelSession },
+      {
+        text: 'Cancel Workout',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            if (healthAvailable) await healthService.discardWorkout();
+          } catch {
+            // Local cancellation must remain available if HealthKit fails.
+          } finally {
+            cancelSession();
+          }
+        },
+      },
     ]);
   };
+
+  const renderWorkoutNameModal = () => (
+    <Modal
+      visible={nameModalVisible}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setNameModalVisible(false)}
+    >
+      <View
+        style={[
+          styles.modalOverlay,
+          { paddingBottom: Math.max(insets.bottom, Spacing.lg) },
+        ]}
+      >
+        <View style={styles.modalCard}>
+          <View style={styles.dragIndicator} />
+          <Text style={styles.modalTitle}>
+            {editingWorkoutName ? 'Edit workout' : 'Name your workout'}
+          </Text>
+          <TextInput
+            style={styles.modalInput}
+            value={workoutName}
+            onChangeText={setWorkoutName}
+            placeholder="e.g. Push Day"
+            placeholderTextColor={Colors.textMuted}
+            autoFocus
+            onSubmitEditing={confirmWorkoutName}
+            returnKeyType="done"
+          />
+          <View style={styles.modalBtns}>
+            <TouchableOpacity
+              style={styles.modalCancel}
+              onPress={() => setNameModalVisible(false)}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalConfirm}
+              onPress={confirmWorkoutName}
+            >
+              <Text style={styles.modalConfirmText}>
+                {editingWorkoutName ? 'Save' : 'Start'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {editingWorkoutName ? (
+            <TouchableOpacity
+              style={styles.modalDestructive}
+              onPress={() => {
+                setNameModalVisible(false);
+                handleCancelWorkout();
+              }}
+            >
+              <Text style={styles.modalDestructiveText}>Cancel workout</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
+    </Modal>
+  );
 
   // ── No active session ─────────────────────────────────────────────────────
   if (!session) {
@@ -154,50 +419,30 @@ export function WorkoutScreen() {
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <EmptyWorkoutState onStart={handleStartWorkout} />
 
-        <Modal
-          visible={nameModalVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setNameModalVisible(false)}
-        >
-          <View
-            style={[
-              styles.modalOverlay,
-              { paddingBottom: Math.max(insets.bottom, Spacing.lg) },
-            ]}
-          >
-            <View style={styles.modalCard}>
-              <View style={styles.dragIndicator} />
-              <Text style={styles.modalTitle}>Name your workout</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={workoutName}
-                onChangeText={setWorkoutName}
-                placeholder="e.g. Push Day"
-                placeholderTextColor={Colors.textMuted}
-                autoFocus
-                onSubmitEditing={confirmStart}
-                returnKeyType="done"
-              />
-              <View style={styles.modalBtns}>
-                <TouchableOpacity
-                  style={styles.modalCancel}
-                  onPress={() => setNameModalVisible(false)}
-                >
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.modalConfirm} onPress={confirmStart}>
-                  <Text style={styles.modalConfirmText}>Start</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
+        {renderWorkoutNameModal()}
       </SafeAreaView>
     );
   }
 
   // ── Active session ────────────────────────────────────────────────────────
+  const activeExercise =
+    session.exercises.find((exercise) => exercise.id === selectedExerciseId) ??
+    session.exercises[0] ??
+    null;
+  const otherExercises = session.exercises.filter(
+    (exercise) => exercise.id !== activeExercise?.id,
+  );
+  const replacingWorkoutExerciseId =
+    pickerMode.type === 'replace' ? pickerMode.workoutExerciseId : null;
+  const visiblePickerExercises = pickerExercises.filter(
+    (exercise) =>
+      !session.exercises.some(
+        (workoutExercise) =>
+          workoutExercise.id !== replacingWorkoutExerciseId &&
+          workoutExercise.exerciseId === exercise.id,
+      ),
+  );
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <ScrollView
@@ -209,7 +454,12 @@ export function WorkoutScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <SessionHeader />
+        <SessionHeader
+          metrics={liveMetrics}
+          healthState={healthState}
+          onEdit={openWorkoutEditor}
+          onTogglePause={handleTogglePause}
+        />
 
         {session.exercises.length === 0 ? (
           <View style={styles.firstExercisePrompt}>
@@ -220,25 +470,54 @@ export function WorkoutScreen() {
           </View>
         ) : null}
 
-        {session.exercises.map((ex) => (
+        {activeExercise ? (
+          <>
+            <Text style={styles.sectionLabel}>ACTIVE EXERCISE</Text>
           <ExerciseCard
-            key={ex.id}
-            exercise={ex}
-            onRemove={() => {
-              Alert.alert('Remove exercise?', ex.exerciseName, [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Remove',
-                  style: 'destructive',
-                  onPress: () => {
-                    animateWorkoutLayout();
-                    removeExercise(ex.id);
-                  },
-                },
-              ]);
-            }}
+              exercise={activeExercise}
+              onOpenMenu={() => openExerciseMenu(activeExercise.id)}
           />
-        ))}
+          </>
+        ) : null}
+
+        {otherExercises.length > 0 ? (
+          <View style={styles.upcomingSection}>
+            <Text style={styles.sectionLabel}>UPCOMING</Text>
+            {otherExercises.map((exercise) => {
+              const completedSets = exercise.sets.filter(
+                (setEntry) => setEntry.completed,
+              ).length;
+              return (
+                <TouchableOpacity
+                  key={exercise.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${exercise.exerciseName}`}
+                  style={styles.upcomingRow}
+                  onPress={() => {
+                    animateWorkoutLayout();
+                    setSelectedExerciseId(exercise.id);
+                  }}
+                  onLongPress={() => openExerciseMenu(exercise.id)}
+                >
+                  <View style={styles.upcomingIndex}>
+                    <Text style={styles.upcomingIndexText}>
+                      {session.exercises.indexOf(exercise) + 1}
+                    </Text>
+                  </View>
+                  <View style={styles.upcomingCopy}>
+                    <Text style={styles.upcomingName} numberOfLines={1}>
+                      {exercise.exerciseName}
+                    </Text>
+                    <Text style={styles.upcomingMeta}>
+                      {completedSets}/{exercise.sets.length} sets complete
+                    </Text>
+                  </View>
+                  <Text style={styles.upcomingAction}>Open</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : null}
 
         {/* Cancel */}
         <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelWorkout}>
@@ -248,16 +527,18 @@ export function WorkoutScreen() {
 
       <WorkoutActionBar
         bottom={actionBottom}
-        onAddExercise={handleOpenPicker}
+        onAddExercise={() => void handleOpenPicker()}
         onFinish={handleFinishWorkout}
       />
 
       <ExercisePicker
         visible={pickerVisible}
-        exercises={pickerExercises}
+        exercises={visiblePickerExercises}
         onSelect={handleAddExercise}
         onClose={() => setPickerVisible(false)}
+        title={pickerMode.type === 'replace' ? 'Replace exercise' : 'Add exercise'}
       />
+      {renderWorkoutNameModal()}
     </SafeAreaView>
   );
 }
@@ -285,6 +566,54 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: FontSize.md,
     lineHeight: 21,
+  },
+
+  sectionLabel: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 0.9,
+    marginBottom: Spacing.xs,
+  },
+  upcomingSection: {
+    marginBottom: Spacing.xl,
+  },
+  upcomingRow: {
+    minHeight: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  upcomingIndex: {
+    width: 28,
+    height: 28,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.bgCardAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  upcomingIndexText: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
+  upcomingCopy: { flex: 1 },
+  upcomingName: {
+    color: Colors.textPrimary,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+    marginBottom: 3,
+  },
+  upcomingMeta: {
+    color: Colors.textMuted,
+    fontSize: FontSize.sm,
+  },
+  upcomingAction: {
+    color: Colors.accent,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
   },
 
   cancelBtn: {
@@ -360,4 +689,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalConfirmText: { color: '#000', fontWeight: FontWeight.bold, fontSize: FontSize.md },
+  modalDestructive: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.md,
+  },
+  modalDestructiveText: {
+    color: Colors.danger,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
+  },
 });

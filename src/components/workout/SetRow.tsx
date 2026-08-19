@@ -26,9 +26,18 @@ interface Props {
   index: number;
   onUpdate: (updates: Partial<SetEntry>) => void;
   onToggleComplete: () => void;
+  onRemove: () => void;
+  canRemove: boolean;
 }
 
-export function SetRow({ set, index, onUpdate, onToggleComplete }: Props) {
+export function SetRow({
+  set,
+  index,
+  onUpdate,
+  onToggleComplete,
+  onRemove,
+  canRemove,
+}: Props) {
   const reduceMotion = useReducedMotion();
   const rowTint = useRef(new Animated.Value(set.completed ? 1 : 0)).current;
   const checkScale = useRef(new Animated.Value(set.completed ? 1 : 0)).current;
@@ -115,6 +124,25 @@ export function SetRow({ set, index, onUpdate, onToggleComplete }: Props) {
           <AppIcon name="check" size={19} color={Colors.bg} strokeWidth={2.4} />
         </Animated.View>
       </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Delete set ${index + 1}`}
+        accessibilityState={{ disabled: !canRemove }}
+        disabled={!canRemove}
+        hitSlop={4}
+        style={styles.removeButton}
+        onPress={onRemove}
+      >
+        <Text
+          style={[
+            styles.removeButtonText,
+            !canRemove && styles.removeButtonTextDisabled,
+          ]}
+        >
+          −
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -178,4 +206,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent,
     borderColor: Colors.accent,
   },
+  removeButton: {
+    width: 32,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeButtonText: {
+    color: Colors.danger,
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.medium,
+  },
+  removeButtonTextDisabled: { color: Colors.textMuted },
 });

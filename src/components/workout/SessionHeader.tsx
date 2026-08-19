@@ -17,11 +17,25 @@ import {
   getProgressPercentage,
 } from '../../utils/uiPresentation';
 import { AppIcon } from '../icons/AppIcon';
+import type {
+  HealthWorkoutState,
+  LiveHealthMetrics,
+} from '../../health/types';
 
-export function SessionHeader() {
+interface Props {
+  metrics: LiveHealthMetrics | null;
+  healthState: HealthWorkoutState;
+  onEdit: () => void;
+  onTogglePause: () => void;
+}
+
+export function SessionHeader({
+  metrics,
+  healthState,
+  onEdit,
+  onTogglePause,
+}: Props) {
   const session = useWorkoutStore((s) => s.session);
-  const pauseSession = useWorkoutStore((s) => s.pauseSession);
-  const resumeSession = useWorkoutStore((s) => s.resumeSession);
   const completedSets = useWorkoutStore((s) => s.completedSetsCount());
   const totalSets = useWorkoutStore((s) => s.totalSetsCount());
   const elapsedSeconds = useWorkoutTimer(session);
@@ -44,10 +58,26 @@ export function SessionHeader() {
     inputRange: [0, 100],
     outputRange: ['0%', '100%'],
   });
+  const healthLabel =
+    healthState === 'running' || healthState === 'paused'
+      ? 'APPLE HEALTH LIVE'
+      : healthState === 'starting' || healthState === 'ending'
+        ? 'CONNECTING TO APPLE HEALTH'
+        : 'HEALTH METRICS UNAVAILABLE';
 
   return (
     <View style={styles.header}>
-      <Text style={styles.label}>WORKOUT IN PROGRESS</Text>
+      <View style={styles.eyebrowRow}>
+        <Text style={styles.label}>WORKOUT IN PROGRESS</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Edit workout"
+          hitSlop={8}
+          onPress={onEdit}
+        >
+          <Text style={styles.editText}>Edit</Text>
+        </Pressable>
+      </View>
 
       <View style={styles.titleRow}>
         <Text style={styles.title} numberOfLines={1}>
@@ -57,7 +87,7 @@ export function SessionHeader() {
           accessibilityRole="button"
           accessibilityLabel={isPaused ? 'Resume workout timer' : 'Pause workout timer'}
           hitSlop={4}
-          onPress={isPaused ? resumeSession : pauseSession}
+          onPress={onTogglePause}
           style={({ pressed }) => [
             styles.controlButton,
             pressed && styles.controlButtonPressed,
@@ -71,13 +101,39 @@ export function SessionHeader() {
         </Pressable>
       </View>
 
-      <Text
-        accessibilityLiveRegion="none"
-        accessibilityLabel={`Workout time ${formatTimerDisplay(elapsedSeconds)}`}
-        style={styles.timer}
-      >
-        {formatTimerDisplay(elapsedSeconds)}
-      </Text>
+      <View style={styles.metricStrip}>
+        <View style={styles.metricItem}>
+          <Text style={styles.metricLabel}>TIME</Text>
+          <Text
+            accessibilityLiveRegion="none"
+            accessibilityLabel={`Workout time ${formatTimerDisplay(elapsedSeconds)}`}
+            style={styles.metricValue}
+          >
+            {formatTimerDisplay(elapsedSeconds)}
+          </Text>
+        </View>
+        <View style={styles.metricDivider} />
+        <View style={styles.metricItem}>
+          <Text style={styles.metricLabel}>ACTIVE</Text>
+          <Text style={styles.metricValue}>
+            {metrics?.activeEnergyKilocalories == null
+              ? '—'
+              : Math.round(metrics.activeEnergyKilocalories)}
+            <Text style={styles.metricUnit}> kcal</Text>
+          </Text>
+        </View>
+        <View style={styles.metricDivider} />
+        <View style={styles.metricItem}>
+          <Text style={styles.metricLabel}>HEART</Text>
+          <Text style={styles.metricValue}>
+            {metrics?.heartRateBpm == null
+              ? '—'
+              : Math.round(metrics.heartRateBpm)}
+            <Text style={styles.metricUnit}> bpm</Text>
+          </Text>
+        </View>
+      </View>
+      <Text style={styles.healthStatus}>{healthLabel}</Text>
 
       <View style={styles.progressRow}>
         <Text style={styles.progressText}>
@@ -100,12 +156,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
+  eyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+  },
   label: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
     color: Colors.textMuted,
     letterSpacing: 1.2,
-    marginBottom: Spacing.md,
+  },
+  editText: {
+    color: Colors.accent,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
   },
   titleRow: {
     flexDirection: 'row',
@@ -121,14 +187,6 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     letterSpacing: -0.5,
   },
-  timer: {
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textSecondary,
-    letterSpacing: 0.4,
-    fontVariant: ['tabular-nums'],
-    marginBottom: Spacing.xl,
-  },
   controlButton: {
     width: 44,
     height: 44,
@@ -142,6 +200,46 @@ const styles = StyleSheet.create({
   controlButtonPressed: {
     opacity: 0.72,
     transform: [{ scale: 0.96 }],
+  },
+  metricStrip: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    paddingVertical: Spacing.lg,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: Colors.border,
+  },
+  metricItem: { flex: 1 },
+  metricDivider: {
+    width: 1,
+    backgroundColor: Colors.border,
+    marginHorizontal: Spacing.md,
+  },
+  metricLabel: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 0.8,
+    marginBottom: Spacing.xs,
+  },
+  metricValue: {
+    color: Colors.textPrimary,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    fontVariant: ['tabular-nums'],
+  },
+  metricUnit: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
+  healthStatus: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    letterSpacing: 0.7,
+    marginBottom: Spacing.xl,
   },
   progressRow: {
     flexDirection: 'row',
