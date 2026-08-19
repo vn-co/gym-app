@@ -1,6 +1,6 @@
-import { requireNativeModule } from 'expo';
+import { requireOptionalNativeModule } from 'expo';
 import type { NativeHealthKitWorkoutModule } from './HealthKitWorkout.types';
 
-export default requireNativeModule<NativeHealthKitWorkoutModule>(
+export default requireOptionalNativeModule<NativeHealthKitWorkoutModule>(
   'HealthKitWorkout',
 );

@@ -7,6 +7,16 @@ import {
 } from './normalizeHealthPayload';
 import { HealthServiceError, type HealthService } from './types';
 
+const nativeModule = () => {
+  if (!HealthKitWorkout) {
+    throw new HealthServiceError(
+      'healthkit_unavailable',
+      'Apple Health requires a development build containing the HealthKit module.',
+    );
+  }
+  return HealthKitWorkout;
+};
+
 const toHealthServiceError = (error: unknown): HealthServiceError => {
   if (error instanceof HealthServiceError) return error;
 
@@ -35,30 +45,37 @@ const fromNative = async <T>(operation: () => Promise<T>): Promise<T> => {
 };
 
 export const healthService: HealthService = {
-  isHealthDataAvailable: () =>
-    fromNative(() => HealthKitWorkout.isHealthDataAvailable()),
+  isHealthDataAvailable: () => {
+    if (!HealthKitWorkout) return Promise.resolve(false);
+    const module = HealthKitWorkout;
+    return fromNative(() => module.isHealthDataAvailable());
+  },
   requestAuthorization: () =>
-    fromNative(() => HealthKitWorkout.requestAuthorization()),
+    fromNative(() => nativeModule().requestAuthorization()),
   readTodayActivity: async () =>
     normalizeTodayActivity(
-      await fromNative(() => HealthKitWorkout.readTodayActivity()),
+      await fromNative(() => nativeModule().readTodayActivity()),
     ),
   startWorkout: (localSessionId, startedAt) =>
     fromNative(() =>
-      HealthKitWorkout.startWorkout(localSessionId, startedAt),
+      nativeModule().startWorkout(localSessionId, startedAt),
     ),
-  pauseWorkout: () => fromNative(() => HealthKitWorkout.pauseWorkout()),
-  resumeWorkout: () => fromNative(() => HealthKitWorkout.resumeWorkout()),
+  pauseWorkout: () => fromNative(() => nativeModule().pauseWorkout()),
+  resumeWorkout: () => fromNative(() => nativeModule().resumeWorkout()),
   finishWorkout: async () =>
     normalizeFinishedHealthWorkout(
-      await fromNative(() => HealthKitWorkout.finishWorkout()),
+      await fromNative(() => nativeModule().finishWorkout()),
     ),
-  discardWorkout: () => fromNative(() => HealthKitWorkout.discardWorkout()),
-  getWorkoutState: async () =>
-    normalizeWorkoutState(
-      await fromNative(() => HealthKitWorkout.getWorkoutState()),
-    ),
+  discardWorkout: () => fromNative(() => nativeModule().discardWorkout()),
+  getWorkoutState: async () => {
+    if (!HealthKitWorkout) return { state: 'idle' };
+    const module = HealthKitWorkout;
+    return normalizeWorkoutState(
+      await fromNative(() => module.getWorkoutState()),
+    );
+  },
   subscribeToWorkoutState: (listener) => {
+    if (!HealthKitWorkout) return () => {};
     const subscription = HealthKitWorkout.addListener(
       'onWorkoutStateChanged',
       (payload) => listener(normalizeWorkoutState(payload)),
@@ -66,6 +83,7 @@ export const healthService: HealthService = {
     return () => subscription.remove();
   },
   subscribeToLiveMetrics: (listener) => {
+    if (!HealthKitWorkout) return () => {};
     const subscription = HealthKitWorkout.addListener(
       'onLiveMetrics',
       (payload) => listener(normalizeLiveHealthMetrics(payload)),

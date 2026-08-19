@@ -27,3 +27,16 @@ test('registers the local Apple module', async () => {
   assert.deepEqual(config.platforms, ['apple']);
   assert.deepEqual(config.apple.modules, ['HealthKitWorkoutModule']);
 });
+
+test('loads the native HealthKit module optionally for Expo Go and older builds', async () => {
+  const source = await readFile(
+    new URL(
+      '../modules/healthkit-workout/src/HealthKitWorkoutModule.ts',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+
+  assert.match(source, /requireOptionalNativeModule/);
+  assert.doesNotMatch(source, /\brequireNativeModule\b/);
+});
