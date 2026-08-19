@@ -22,6 +22,8 @@ import { getSessions, getPersonalRecords } from '../services/storage';
 import { buildProgressData, formatWeight, formatShortDate } from '../utils';
 import { LineChart } from '../components/ui/LineChart';
 import type { WorkoutSession, PersonalRecord, ProgressRange } from '../types';
+import { WorkoutHistoryItem } from '../components/progress/WorkoutHistoryItem';
+import { buildPersonalRecordHistory } from '../utils/workoutHistory';
 
 const RANGES: { label: string; value: ProgressRange }[] = [
   { label: '7 Days', value: '7d' },
@@ -69,8 +71,7 @@ export function ProgressScreen() {
   const { points, stats } = buildProgressData(sessions, range);
   const hasData = points.some((point) => point.volume > 0);
 
-  // Sort PRs by most recent
-  const sortedPrs = [...prs].sort((a, b) => b.setAt - a.setAt);
+  const prHistory = buildPersonalRecordHistory(sessions);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -173,13 +174,33 @@ export function ProgressScreen() {
           </View>
         </View>
 
-        {/* Personal Records */}
+        {/* Workout History */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionLabel}>PERSONAL RECORDS</Text>
-          <Text style={styles.sectionCount}>{prs.length} exercises</Text>
+          <Text style={styles.sectionLabel}>WORKOUT HISTORY</Text>
+          <Text style={styles.sectionCount}>{sessions.length} sessions</Text>
         </View>
 
-        {sortedPrs.length === 0 ? (
+        {sessions.length === 0 ? (
+          <View style={styles.emptyHistory}>
+            <Text style={styles.emptyPrsText}>
+              Completed workouts will appear here.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.historyList}>
+            {sessions.map((session) => (
+              <WorkoutHistoryItem key={session.id} session={session} />
+            ))}
+          </View>
+        )}
+
+        {/* PR History */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionLabel}>PR HISTORY</Text>
+          <Text style={styles.sectionCount}>{prHistory.length} records</Text>
+        </View>
+
+        {prHistory.length === 0 ? (
           <View style={styles.emptyPrs}>
             <Text style={styles.emptyPrsEmoji}>🏆</Text>
             <Text style={styles.emptyPrsText}>
@@ -187,8 +208,14 @@ export function ProgressScreen() {
             </Text>
           </View>
         ) : (
-          sortedPrs.map((pr) => (
-            <View key={pr.exerciseId} style={styles.prCard}>
+          prHistory.map((pr) => {
+            const isAllTimeBest = prs.some(
+              (savedRecord) =>
+                savedRecord.exerciseId === pr.exerciseId &&
+                savedRecord.weight === pr.weight,
+            );
+            return (
+            <View key={`${pr.sessionId}_${pr.exerciseId}`} style={styles.prCard}>
               <View style={styles.prIcon}>
                 <Text style={styles.prEmoji}>🏆</Text>
               </View>
@@ -200,10 +227,13 @@ export function ProgressScreen() {
               </View>
               <View style={styles.prRight}>
                 <Text style={styles.prWeight}>{pr.weight} kg</Text>
-                <Text style={styles.prSubtitle}>All time PR</Text>
+                <Text style={styles.prSubtitle}>
+                  {isAllTimeBest ? 'All-time best' : 'Previous PR'}
+                </Text>
               </View>
             </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
     </SafeAreaView>
@@ -368,6 +398,11 @@ const styles = StyleSheet.create({
   prSubtitle: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
 
   emptyPrs: { alignItems: 'center', paddingVertical: Spacing.xxxl },
+  emptyHistory: {
+    paddingVertical: Spacing.xxl,
+    marginBottom: Spacing.lg,
+  },
+  historyList: { marginBottom: Spacing.xxl },
   emptyPrsEmoji: { fontSize: 48, marginBottom: Spacing.md },
   emptyPrsText: {
     fontSize: FontSize.md,
