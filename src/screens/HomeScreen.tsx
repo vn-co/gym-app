@@ -1,41 +1,126 @@
 import { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  RefreshControl,
   Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useFocusEffect, router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityOverview } from '../components/home/ActivityOverview';
+import { AppIcon } from '../components/icons/AppIcon';
+import { RoutineCard } from '../components/routines/RoutineCard';
+import { AmbientBackdrop } from '../components/ui/AmbientBackdrop';
 import {
   Colors,
+  FontFamily,
   FontSize,
   FontWeight,
-  Spacing,
   Radius,
+  Spacing,
 } from '../constants/tokens';
+import { healthService } from '../health/healthService';
+import type { TodayActivity } from '../health/types';
 import {
+  getRoutines,
   getSessions,
   getUserName,
-  getRoutines,
   touchRoutineLastUsed,
 } from '../services/storage';
+import { useWorkoutStore } from '../store/workoutStore';
+import type { Routine, WorkoutSession } from '../types';
 import {
+  formatSessionTime,
+  formatWeight,
   getGreeting,
   getWeeklyConsistency,
-  formatWeight,
   isToday,
-  formatSessionTime,
 } from '../utils';
-import type { WorkoutSession, Routine } from '../types';
-import { useWorkoutStore } from '../store/workoutStore';
-import { RoutineCard } from '../components/routines/RoutineCard';
-import { HealthKitProofPanel } from '../components/health/HealthKitProofPanel';
 
 const WEEK_DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+type HealthViewState = 'loading' | 'available' | 'unavailable' | 'error';
+
+function SessionMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.sessionMetric}>
+      <Text style={styles.sessionMetricLabel}>{label}</Text>
+      <Text style={styles.sessionMetricValue}>{value}</Text>
+    </View>
+  );
+}
+
+function LastWorkout({ session }: { session: WorkoutSession | null }) {
+  if (!session) {
+    return (
+      <View style={styles.emptyWorkout}>
+        <Text style={styles.emptyWorkoutTitle}>Your first session starts here.</Text>
+        <Text style={styles.emptyWorkoutCopy}>
+          Complete a workout and its training summary will live here.
+        </Text>
+      </View>
+    );
+  }
+
+  const calories = session.health?.activeEnergyKilocalories;
+
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel="Open workout progress"
+      activeOpacity={0.76}
+      style={styles.lastWorkout}
+      onPress={() => router.push('/(tabs)/progress')}
+    >
+      <View style={styles.lastWorkoutTop}>
+        <View style={styles.lastWorkoutTitleBlock}>
+          <Text style={styles.lastWorkoutName} numberOfLines={1}>
+            {session.name}
+          </Text>
+          <Text style={styles.lastWorkoutDate}>
+            {isToday(session.startTime)
+              ? 'Today'
+              : new Date(session.startTime).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                })}
+            {' · '}
+            {formatSessionTime(session.startTime)}
+          </Text>
+        </View>
+        <View style={styles.openMark}>
+          <Text style={styles.openMarkText}>↗</Text>
+        </View>
+      </View>
+
+      <View style={styles.sessionMetrics}>
+        <SessionMetric
+          label="TIME"
+          value={`${Math.max(1, Math.round(session.durationSeconds / 60))} min`}
+        />
+        <View style={styles.sessionMetricDivider} />
+        <SessionMetric
+          label="VOLUME"
+          value={`${formatWeight(session.totalVolume)} kg`}
+        />
+        <View style={styles.sessionMetricDivider} />
+        <SessionMetric
+          label="ACTIVE"
+          value={calories == null ? '—' : `${Math.round(calories)} kcal`}
+        />
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 export function HomeScreen() {
   const [userName, setUserName] = useState('Vlad');
@@ -44,15 +129,18 @@ export function HomeScreen() {
   const [consistency, setConsistency] = useState<boolean[]>(
     Array(7).fill(false),
   );
+  const [activity, setActivity] = useState<TodayActivity | null>(null);
+  const [healthState, setHealthState] =
+    useState<HealthViewState>('loading');
   const [refreshing, setRefreshing] = useState(false);
   const [today] = useState(new Date());
 
-  const activeSession = useWorkoutStore((s) => s.session);
+  const activeSession = useWorkoutStore((state) => state.session);
   const startSessionFromRoutine = useWorkoutStore(
-    (s) => s.startSessionFromRoutine,
+    (state) => state.startSessionFromRoutine,
   );
 
-  const load = useCallback(async () => {
+  const loadLocalData = useCallback(async () => {
     try {
       const [name, allSessions, allRoutines] = await Promise.all([
         getUserName(),
@@ -71,6 +159,59 @@ export function HomeScreen() {
     }
   }, []);
 
+  const loadHealthData = useCallback(async () => {
+    setHealthState('loading');
+    try {
+      const available = await healthService.isHealthDataAvailable();
+      if (!available) {
+        setActivity(null);
+        setHealthState('unavailable');
+        return;
+      }
+      setActivity(await healthService.readTodayActivity());
+      setHealthState('available');
+    } catch {
+      setActivity(null);
+      setHealthState('error');
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadLocalData();
+      void loadHealthData();
+    }, [loadHealthData, loadLocalData]),
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([loadLocalData(), loadHealthData()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadHealthData, loadLocalData]);
+
+  const handleConnectHealth = async () => {
+    setHealthState('loading');
+    try {
+      const available = await healthService.isHealthDataAvailable();
+      if (!available) {
+        setHealthState('unavailable');
+        return;
+      }
+      await healthService.requestAuthorization();
+      setActivity(await healthService.readTodayActivity());
+      setHealthState('available');
+    } catch {
+      setHealthState('error');
+    }
+  };
+
+  const handleStartWorkout = () => {
+    router.push('/(tabs)/workout');
+  };
+
   const handleStartRoutine = async (routine: Routine) => {
     if (activeSession) {
       router.push('/(tabs)/workout');
@@ -88,35 +229,21 @@ export function HomeScreen() {
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await load();
-    } finally {
-      setRefreshing(false);
-    }
-  }, [load]);
-
-  const handleStartWorkout = () => {
-    if (activeSession) {
-      router.push('/(tabs)/workout');
-      return;
-    }
-    router.push('/(tabs)/workout');
-  };
-
-  const recentSessions = sessions.slice(0, 5);
   const consistencyCount = consistency.filter(Boolean).length;
-  const todayDayIdx = (today.getDay() + 6) % 7; // convert Sun=0 to Mon=0
+  const todayDayIndex = (today.getDay() + 6) % 7;
+  const latestWorkout = sessions[0] ?? null;
+  const healthMessage =
+    healthState === 'loading'
+      ? 'Reading Apple Health'
+      : healthState === 'available'
+        ? 'Apple Health connected'
+        : healthState === 'unavailable'
+          ? 'Apple Health requires the installed iPhone build'
+          : 'Apple Health needs attention';
 
   return (
     <SafeAreaView style={styles.safe}>
+      <AmbientBackdrop intensity="hero" />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -129,66 +256,133 @@ export function HomeScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Greeting */}
-        <View style={styles.greetingRow}>
-          <View>
+        <View style={styles.header}>
+          <View style={styles.headerCopy}>
             <Text style={styles.dateLabel}>
               {today
                 .toLocaleDateString('en-US', {
                   weekday: 'long',
-                  month: 'short',
+                  month: 'long',
                   day: 'numeric',
                 })
                 .toUpperCase()}
             </Text>
+            <Text style={styles.title}>Today</Text>
             <Text style={styles.greeting}>
-              {getGreeting()},{' '}
-              <Text style={styles.greetingName}>{userName}.</Text>
+              {getGreeting()}, {userName}.
             </Text>
           </View>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {userName[0]?.toUpperCase() ?? 'A'}
+              {userName[0]?.toUpperCase() ?? 'V'}
             </Text>
           </View>
         </View>
 
-        {/* Start Workout CTA */}
+        <ActivityOverview activity={activity} />
+
         <TouchableOpacity
-          style={styles.startCta}
+          accessibilityRole="button"
+          accessibilityLabel={
+            activeSession ? 'Continue active workout' : 'Start workout'
+          }
+          activeOpacity={0.84}
+          style={[
+            styles.primaryAction,
+            activeSession && styles.primaryActionActive,
+          ]}
           onPress={handleStartWorkout}
-          activeOpacity={0.85}
         >
-          <View style={styles.startCtaLeft}>
-            <View style={styles.plusCircle}>
-              <Text style={styles.plusText}>+</Text>
-            </View>
-            <View>
-              <Text style={styles.startCtaTitle}>
-                {activeSession ? 'Continue Workout' : 'Start Empty Workout'}
-              </Text>
-              <Text style={styles.startCtaSub}>
-                {activeSession
-                  ? `${activeSession.workoutName} in progress`
-                  : 'No template needed'}
-              </Text>
-            </View>
+          <View style={styles.primaryIcon}>
+            <AppIcon
+              name={activeSession ? 'play' : 'dumbbell'}
+              size={21}
+              color={Colors.bg}
+              strokeWidth={2}
+            />
           </View>
-          <Text style={styles.arrow}>›</Text>
+          <View style={styles.primaryCopy}>
+            <Text style={styles.primaryTitle}>
+              {activeSession ? 'Continue workout' : 'Start workout'}
+            </Text>
+            <Text style={styles.primaryDetail}>
+              {activeSession
+                ? `${activeSession.workoutName} is in progress`
+                : 'Empty session or choose a routine below'}
+            </Text>
+          </View>
+          <Text style={styles.primaryArrow}>›</Text>
         </TouchableOpacity>
 
-        {__DEV__ ? <HealthKitProofPanel /> : null}
+        <View style={styles.sectionHeading}>
+          <Text style={styles.sectionLabel}>LAST WORKOUT</Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={() => router.push('/(tabs)/progress')}
+          >
+            <Text style={styles.sectionAction}>History</Text>
+          </TouchableOpacity>
+        </View>
+        <LastWorkout session={latestWorkout} />
 
-        {/* Routines quick-launch */}
-        {routines.length > 0 && (
+        <View style={styles.sectionHeading}>
+          <Text style={styles.sectionLabel}>THIS WEEK</Text>
+          <Text style={styles.sectionMeta}>{consistencyCount} sessions</Text>
+        </View>
+        <View style={styles.weekCard}>
+          <View style={styles.weekTop}>
+            <Text style={styles.weekValue}>{consistencyCount}</Text>
+            <Text style={styles.weekCopy}>
+              {consistencyCount === 1 ? 'workout' : 'workouts'} completed
+            </Text>
+          </View>
+          <View style={styles.weekRail}>
+            {WEEK_DAYS.map((day, index) => {
+              const completed = consistency[index];
+              const current = index === todayDayIndex;
+              return (
+                <View key={`${day}-${index}`} style={styles.day}>
+                  <View
+                    style={[
+                      styles.dayMark,
+                      completed && styles.dayMarkComplete,
+                      current && !completed && styles.dayMarkCurrent,
+                    ]}
+                  >
+                    {completed ? (
+                      <AppIcon name="check" size={15} color={Colors.bg} />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.dayNumber,
+                          current && styles.dayNumberCurrent,
+                        ]}
+                      >
+                        {index + 1}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={[styles.dayLabel, current && styles.dayLabelCurrent]}>
+                    {day}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {routines.length > 0 ? (
           <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>MY ROUTINES</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/routines')}>
-                <Text style={styles.seeAll}>See all</Text>
+            <View style={styles.sectionHeading}>
+              <Text style={styles.sectionLabel}>QUICK START</Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => router.push('/(tabs)/routines')}
+              >
+                <Text style={styles.sectionAction}>All routines</Text>
               </TouchableOpacity>
             </View>
-            {routines.slice(0, 3).map((routine) => (
+            {routines.slice(0, 2).map((routine) => (
               <RoutineCard
                 key={routine.id}
                 routine={routine}
@@ -199,349 +393,348 @@ export function HomeScreen() {
               />
             ))}
           </>
-        )}
+        ) : null}
 
-        {/* Weekly Consistency */}
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <View style={styles.cardHeaderLeft}>
-              <Text style={styles.cardLabelEmoji}>↗</Text>
-              <Text style={styles.cardLabel}>WEEKLY CONSISTENCY</Text>
-            </View>
-            <Text style={styles.consistencyCount}>{consistencyCount}/7</Text>
-          </View>
-
-          <View style={styles.dotsRow}>
-            {WEEK_DAYS.map((day, i) => {
-              const isCurrentDay = i === todayDayIdx;
-              const done = consistency[i];
-              return (
-                <View key={i} style={styles.dayItem}>
-                  <Text style={styles.dayLabel}>{day}</Text>
-                  <View
-                    style={[
-                      styles.dot,
-                      done
-                        ? styles.dotDone
-                        : isCurrentDay
-                          ? styles.dotToday
-                          : styles.dotEmpty,
-                    ]}
-                  >
-                    {done && <Text style={styles.dotCheck}>✓</Text>}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-
-          {/* Progress bar */}
-          <View style={styles.progressBar}>
+        <View style={styles.healthRow}>
+          <View style={styles.healthCopy}>
             <View
               style={[
-                styles.progressFill,
-                { width: `${(consistencyCount / 7) * 100}%` },
+                styles.healthDot,
+                healthState !== 'available' && styles.healthDotMuted,
               ]}
             />
-          </View>
-        </View>
-
-        {/* Recent Workouts */}
-        {recentSessions.length > 0 && (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>RECENT WORKOUTS</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/progress')}>
-                <Text style={styles.seeAll}>See all</Text>
-              </TouchableOpacity>
+            <View style={styles.healthTextBlock}>
+              <Text style={styles.healthTitle}>{healthMessage}</Text>
+              <Text style={styles.healthDetail}>
+                Activity can be unavailable without affecting your workouts.
+              </Text>
             </View>
-
-            {recentSessions.map((session, idx) => (
-              <View key={session.id} style={styles.sessionCard}>
-                <View style={styles.sessionIcon}>
-                  <Text style={styles.sessionEmoji}>💪</Text>
-                </View>
-                <View style={styles.sessionInfo}>
-                  <View style={styles.sessionTitleRow}>
-                    <Text style={styles.sessionName}>{session.name}</Text>
-                    {idx === 0 && (
-                      <View style={styles.latestBadge}>
-                        <Text style={styles.latestBadgeText}>LATEST</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.sessionDate}>
-                    {isToday(session.startTime)
-                      ? 'Today'
-                      : new Date(session.startTime).toLocaleDateString(
-                          'en-US',
-                          { month: 'short', day: 'numeric' },
-                        )}
-                    , {formatSessionTime(session.startTime)}
-                  </Text>
-                  <View style={styles.sessionStats}>
-                    <Text style={styles.sessionStat}>
-                      ⏱ {Math.round(session.durationSeconds / 60)} min
-                    </Text>
-                    <Text style={styles.sessionStat}>
-                      ⚖️ {formatWeight(session.totalVolume)} kg
-                    </Text>
-                    <Text style={styles.sessionStat}>
-                      ⚡ {session.totalSets} sets
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </>
-        )}
-
-        {recentSessions.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>🏋️</Text>
-            <Text style={styles.emptyTitle}>No workouts yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Start your first session above
-            </Text>
           </View>
-        )}
+          <TouchableOpacity
+            accessibilityRole="button"
+            disabled={healthState === 'loading'}
+            onPress={() => void handleConnectHealth()}
+          >
+            <Text style={styles.healthAction}>
+              {healthState === 'available' ? 'Refresh' : 'Connect'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
-  scroll: { flex: 1 },
-  content: { padding: Spacing.lg, paddingBottom: 100 },
-
-  greetingRow: {
+  safe: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+  },
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: 116,
+  },
+  header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: Spacing.xl,
+    justifyContent: 'space-between',
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xl,
+  },
+  headerCopy: {
+    flex: 1,
   },
   dateLabel: {
-    fontSize: FontSize.xs,
     color: Colors.textMuted,
-    letterSpacing: 0.5,
-    marginBottom: Spacing.xs,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 1.2,
+    marginBottom: 3,
+  },
+  title: {
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.display,
+    lineHeight: 53,
+    letterSpacing: -1.5,
   },
   greeting: {
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
-  },
-  greetingName: {
-    color: Colors.accent,
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    marginTop: 2,
   },
   avatar: {
     width: 44,
     height: 44,
     borderRadius: Radius.full,
-    backgroundColor: Colors.bgCard,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.bgCardAlt,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.accentBorder,
+    marginTop: Spacing.xs,
   },
   avatarText: {
-    color: Colors.textPrimary,
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-  },
-
-  startCta: {
-    backgroundColor: Colors.accent,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.md,
-  },
-  startCtaLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  plusCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.sm,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  plusText: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    color: '#000',
-  },
-  startCtaTitle: {
+    color: Colors.accent,
     fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
-    color: '#000',
   },
-  startCtaSub: {
-    fontSize: FontSize.sm,
-    color: 'rgba(0,0,0,0.6)',
-    fontFamily: 'monospace',
-  },
-  arrow: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    color: 'rgba(0,0,0,0.5)',
-  },
-
-  card: {
-    backgroundColor: Colors.bgCard,
+  primaryAction: {
+    minHeight: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  cardHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  cardLabelEmoji: {
-    fontSize: FontSize.sm,
-    color: Colors.accent,
-  },
-  cardLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-    color: Colors.textMuted,
-    letterSpacing: 0.5,
-  },
-  consistencyCount: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    color: Colors.accent,
-  },
-  dotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.md,
-  },
-  dayItem: { alignItems: 'center', gap: Spacing.xs },
-  dayLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    fontWeight: FontWeight.medium,
-  },
-  dot: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-  },
-  dotDone: { backgroundColor: Colors.bgCardAlt, borderColor: Colors.accent },
-  dotToday: { backgroundColor: 'transparent', borderColor: Colors.accent },
-  dotEmpty: { backgroundColor: Colors.bgCardAlt, borderColor: 'transparent' },
-  dotCheck: {
-    color: Colors.accent,
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: Colors.border,
-    borderRadius: Radius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
     backgroundColor: Colors.accent,
-    borderRadius: Radius.full,
-  },
-
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
     marginTop: Spacing.md,
-    marginBottom: Spacing.md,
+  },
+  primaryActionActive: {
+    borderWidth: 1,
+    borderColor: '#C9FF67',
+  },
+  primaryIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#00000020',
+  },
+  primaryCopy: {
+    flex: 1,
+    paddingHorizontal: Spacing.md,
+  },
+  primaryTitle: {
+    color: Colors.bg,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+  },
+  primaryDetail: {
+    color: '#152000B8',
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  primaryArrow: {
+    color: Colors.bg,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.xxl,
+  },
+  sectionHeading: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginTop: Spacing.xl,
+    paddingBottom: Spacing.sm,
   },
   sectionLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
     color: Colors.textMuted,
-    letterSpacing: 0.5,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 1.1,
   },
-  seeAll: {
-    fontSize: FontSize.sm,
+  sectionAction: {
     color: Colors.accent,
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
   },
-
-  sessionCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.sm,
+  sectionMeta: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
   },
-  sessionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.bgCardAlt,
+  lastWorkout: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: Spacing.lg,
+  },
+  lastWorkoutTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.lg,
+  },
+  lastWorkoutTitleBlock: {
+    flex: 1,
+  },
+  lastWorkoutName: {
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.xxl,
+    letterSpacing: -0.5,
+  },
+  lastWorkoutDate: {
+    color: Colors.textMuted,
+    fontSize: FontSize.sm,
+    marginTop: 3,
+  },
+  openMark: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
   },
-  sessionEmoji: { fontSize: FontSize.xl },
-  sessionInfo: { flex: 1 },
-  sessionTitleRow: {
+  openMarkText: {
+    color: Colors.accent,
+    fontSize: FontSize.lg,
+  },
+  sessionMetrics: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: 2,
   },
-  sessionName: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
+  sessionMetric: {
+    flex: 1,
+  },
+  sessionMetricDivider: {
+    width: 1,
+    backgroundColor: Colors.border,
+    marginHorizontal: Spacing.md,
+  },
+  sessionMetricLabel: {
+    color: Colors.textMuted,
+    fontSize: 9,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 0.9,
+  },
+  sessionMetricValue: {
     color: Colors.textPrimary,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+    fontVariant: ['tabular-nums'],
+    marginTop: 4,
   },
-  latestBadge: {
+  emptyWorkout: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: Spacing.xl,
+  },
+  emptyWorkoutTitle: {
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.xl,
+  },
+  emptyWorkoutCopy: {
+    color: Colors.textMuted,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginTop: Spacing.xs,
+    maxWidth: 300,
+  },
+  weekCard: {
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.lg,
+  },
+  weekTop: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: Spacing.sm,
+    paddingBottom: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  weekValue: {
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.display,
+    fontSize: FontSize.xxxl,
+  },
+  weekCopy: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+  },
+  weekRail: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: Spacing.lg,
+  },
+  day: {
+    alignItems: 'center',
+    gap: 7,
+  },
+  dayMark: {
+    width: 34,
+    height: 34,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: Colors.bgCardAlt,
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  latestBadgeText: {
+  dayMarkComplete: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  dayMarkCurrent: {
+    borderColor: Colors.accent,
+  },
+  dayNumber: {
+    color: Colors.textMuted,
     fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.5,
   },
-  sessionDate: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-    marginBottom: Spacing.xs,
-  },
-  sessionStats: { flexDirection: 'row', gap: Spacing.md },
-  sessionStat: { fontSize: FontSize.xs, color: Colors.textSecondary },
-
-  emptyState: { alignItems: 'center', paddingTop: 60 },
-  emptyEmoji: { fontSize: 48, marginBottom: Spacing.md },
-  emptyTitle: {
-    fontSize: FontSize.lg,
+  dayNumberCurrent: {
+    color: Colors.accent,
     fontWeight: FontWeight.bold,
+  },
+  dayLabel: {
+    color: Colors.textMuted,
+    fontSize: 9,
+    fontWeight: FontWeight.semibold,
+  },
+  dayLabelCurrent: {
     color: Colors.textPrimary,
-    marginBottom: Spacing.xs,
   },
-  emptySubtitle: { fontSize: FontSize.md, color: Colors.textMuted },
+  healthRow: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    marginTop: Spacing.xl,
+  },
+  healthCopy: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingRight: Spacing.md,
+  },
+  healthDot: {
+    width: 7,
+    height: 7,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.accent,
+    marginTop: 6,
+    marginRight: Spacing.sm,
+  },
+  healthDotMuted: {
+    backgroundColor: Colors.textMuted,
+  },
+  healthTextBlock: {
+    flex: 1,
+  },
+  healthTitle: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+  },
+  healthDetail: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  healthAction: {
+    color: Colors.accent,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+  },
 });

@@ -52,3 +52,16 @@ test('defines the approved C visual foundation', async () => {
   assert.match(backdrop, /RadialGradient/);
   assert.match(backdrop, /pointerEvents="none"/);
 });
+
+test('calculates truthful activity progress', async () => {
+  const { formatActivityValue, getGoalProgress } = await import(
+    '../src/utils/todayActivity.ts'
+  );
+
+  assert.equal(getGoalProgress(250, 500), 0.5);
+  assert.equal(getGoalProgress(null, 500), null);
+  assert.equal(getGoalProgress(250, null), null);
+  assert.equal(getGoalProgress(800, 500), 1);
+  assert.equal(formatActivityValue(null, 'kcal'), 'Unavailable');
+  assert.equal(formatActivityValue(412.6, 'kcal'), '413 kcal');
+});
