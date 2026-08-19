@@ -27,6 +27,23 @@ export function parseNumericInput(text: string, integer = false): number {
   return integer ? Math.trunc(value) : value;
 }
 
+export function moveItem<T>(items: T[], fromIndex: number, toIndex: number): T[] {
+  if (
+    fromIndex === toIndex ||
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= items.length ||
+    toIndex >= items.length
+  ) {
+    return items;
+  }
+
+  const reordered = [...items];
+  const [item] = reordered.splice(fromIndex, 1);
+  reordered.splice(toIndex, 0, item);
+  return reordered;
+}
+
 export function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);

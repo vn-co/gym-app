@@ -56,3 +56,35 @@ test('starts a routine with each exercise defaults', async () => {
     ],
   );
 });
+
+test('starts routine exercises in their saved order', () => {
+  const memory = createMemoryStorage();
+  const { store } = createWorkoutStore(memory, {
+    onIssue: () => {},
+    onRecovered: () => {},
+  });
+
+  store.getState().startSessionFromRoutine('Upper', [
+    {
+      exerciseId: 'row',
+      exerciseName: 'Row',
+      muscleGroup: 'back',
+      defaultSets: 1,
+      defaultReps: 10,
+      defaultWeight: 40,
+    },
+    {
+      exerciseId: 'bench_press',
+      exerciseName: 'Bench Press',
+      muscleGroup: 'chest',
+      defaultSets: 1,
+      defaultReps: 8,
+      defaultWeight: 60,
+    },
+  ]);
+
+  assert.deepEqual(
+    store.getState().session?.exercises.map((exercise) => exercise.exerciseId),
+    ['row', 'bench_press'],
+  );
+});

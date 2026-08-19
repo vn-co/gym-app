@@ -21,7 +21,7 @@ import {
   Radius,
 } from '../../constants/tokens';
 import { MUSCLE_GROUP_LABELS } from '../../constants/exercises';
-import { generateId, parseNumericInput } from '../../utils';
+import { generateId, moveItem, parseNumericInput } from '../../utils';
 import type {
   Routine,
   RoutineExercise,
@@ -104,6 +104,10 @@ export function RoutineBuilder({
 
   const removeExercise = (id: string) => {
     setExercises((prev) => prev.filter((e) => e.exerciseId !== id));
+  };
+
+  const moveExercise = (fromIndex: number, toIndex: number) => {
+    setExercises((prev) => moveItem(prev, fromIndex, toIndex));
   };
 
   const updateExercise = (
@@ -312,7 +316,48 @@ export function RoutineBuilder({
                     <Text style={styles.exIdxText}>{idx + 1}</Text>
                   </View>
                   <Text style={styles.exName}>{ex.exerciseName}</Text>
+                  <View style={styles.exOrderControls}>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={`Move ${ex.exerciseName} up`}
+                      accessibilityState={{ disabled: idx === 0 }}
+                      style={styles.exOrderBtn}
+                      onPress={() => moveExercise(idx, idx - 1)}
+                      disabled={idx === 0}
+                    >
+                      <Text
+                        style={[
+                          styles.exOrderText,
+                          idx === 0 && styles.exOrderTextDisabled,
+                        ]}
+                      >
+                        ↑
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={`Move ${ex.exerciseName} down`}
+                      accessibilityState={{
+                        disabled: idx === exercises.length - 1,
+                      }}
+                      style={styles.exOrderBtn}
+                      onPress={() => moveExercise(idx, idx + 1)}
+                      disabled={idx === exercises.length - 1}
+                    >
+                      <Text
+                        style={[
+                          styles.exOrderText,
+                          idx === exercises.length - 1 &&
+                            styles.exOrderTextDisabled,
+                        ]}
+                      >
+                        ↓
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                   <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${ex.exerciseName}`}
                     onPress={() => removeExercise(ex.exerciseId)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
@@ -518,6 +563,22 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
     color: Colors.textPrimary,
   },
+  exOrderControls: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  exOrderBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exOrderText: {
+    color: Colors.accent,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+  },
+  exOrderTextDisabled: { color: Colors.textMuted },
   exRemove: { fontSize: FontSize.md, color: Colors.danger },
 
   exDefaults: {

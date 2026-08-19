@@ -45,3 +45,15 @@ test('parses locale-friendly non-negative numeric input', () => {
   assert.equal(utils.parseNumericInput('-5'), 0);
   assert.equal(utils.parseNumericInput('8.9', true), 8);
 });
+
+test('moveItem reorders without mutating the saved sequence', () => {
+  const original = ['bench', 'row', 'press'];
+
+  assert.deepEqual(utils.moveItem(original, 2, 0), [
+    'press',
+    'bench',
+    'row',
+  ]);
+  assert.deepEqual(original, ['bench', 'row', 'press']);
+  assert.equal(utils.moveItem(original, 0, -1), original);
+});
